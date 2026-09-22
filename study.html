@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Étudier - Mon Anki</title>
+
+
+    <style>
+
+        body {
+
+            font-family: Arial, sans-serif;
+
+            max-width: 700px;
+
+            margin: 40px auto;
+
+            padding: 0 20px;
+
+        }
+
+
+        #back-link {
+
+            display: inline-block;
+
+            margin-bottom: 20px;
+
+        }
+
+
+        #deck-name {
+
+            color: #666;
+
+        }
+
+
+        #settings {
+
+            margin-top: 30px;
+
+            padding: 25px;
+
+            border: 1px solid #ccc;
+
+            border-radius: 10px;
+
+        }
+
+
+        .setting {
+
+            margin-bottom: 25px;
+
+        }
+
+
+        .setting-title {
+
+            font-weight: bold;
+
+            margin-bottom: 10px;
+
+        }
+
+
+        button {
+
+            padding: 10px 16px;
+
+            margin: 5px;
+
+            cursor: pointer;
+
+        }
+
+
+        .selected {
+
+            font-weight: bold;
+
+            border: 2px solid black;
+
+        }
+
+
+        #start-button {
+
+            margin-top: 20px;
+
+            font-size: 18px;
+
+        }
+
+
+        .limit-input {
+
+            width: 100px;
+
+            padding: 10px;
+
+            font-size: 18px;
+
+            border: 1px solid #999;
+
+            border-radius: 5px;
+
+            box-sizing: border-box;
+
+        }
+
+
+        .limit-description {
+
+            color: #666;
+
+            font-size: 14px;
+
+            margin-top: 8px;
+
+        }
+
+
+        #available-cards {
+
+            line-height: 1.7;
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<a
+    id="back-link"
+    href="index.html"
+>
+    ← Retour aux decks
+</a>
+
+
+<h1>Préparer la session</h1>
+
+
+<p id="deck-name"></p>
+
+
+<div id="settings">
+
+
+    <!-- =========================
+         DIRECTION
+    ========================== -->
+
+    <div class="setting">
+
+        <div class="setting-title">
+            Direction
+        </div>
+
+
+        <button id="fr-nl">
+            FR → NL
+        </button>
+
+
+        <button id="nl-fr">
+            NL → FR
+        </button>
+
+
+        <button id="random-direction">
+            Aléatoire
+        </button>
+
+    </div>
+
+
+    <!-- =========================
+         MODE
+    ========================== -->
+
+    <div class="setting">
+
+        <div class="setting-title">
+            Mode
+        </div>
+
+
+        <button id="flashcard-mode">
+            Flashcards
+        </button>
+
+
+        <button id="writing-mode">
+            Écriture
+        </button>
+
+
+        <button id="drawing-mode">
+            ✏️ Dessin
+        </button>
+
+    </div>
+
+
+    <!-- =========================
+         NOUVELLES CARTES
+    ========================== -->
+
+    <div class="setting">
+
+        <div class="setting-title">
+            Limite de nouvelles cartes
+        </div>
+
+
+        <input
+            id="new-card-limit"
+            class="limit-input"
+            type="number"
+            min="0"
+            step="1"
+            value="20"
+            inputmode="numeric"
+            autocomplete="off"
+        >
+
+
+        <div class="limit-description">
+            Maximum de nouvelles cartes dans cette session.
+        </div>
+
+    </div>
+
+
+    <!-- =========================
+         RÉVISIONS
+    ========================== -->
+
+    <div class="setting">
+
+        <div class="setting-title">
+            Limite de cartes à revoir
+        </div>
+
+
+        <input
+            id="review-limit"
+            class="limit-input"
+            type="number"
+            min="0"
+            step="1"
+            value="50"
+            inputmode="numeric"
+            autocomplete="off"
+        >
+
+
+        <div class="limit-description">
+            Maximum de cartes déjà apprises à revoir.
+        </div>
+
+    </div>
+
+
+    <!-- =========================
+         DISPONIBLES
+    ========================== -->
+
+    <div class="setting">
+
+        <div class="setting-title">
+            Cartes disponibles
+        </div>
+
+
+        <p id="available-cards">
+            Calcul...
+        </p>
+
+    </div>
+
+
+    <!-- =========================
+         COMMENCER
+    ========================== -->
+
+    <button id="start-button">
+        Commencer
+    </button>
+
+
+</div>
+
+
+<script src="JS/study.js"></script>
+
+</body>
+
+</html>

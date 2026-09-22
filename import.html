@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Importer - Mon Anki</title>
+
+
+    <style>
+
+        body {
+
+            font-family: Arial, sans-serif;
+
+            max-width: 1100px;
+
+            margin: 35px auto;
+
+            padding: 0 20px;
+
+            color: #222;
+
+        }
+
+
+        h1 {
+
+            margin-bottom: 25px;
+
+        }
+
+
+        .top {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            margin-bottom: 25px;
+
+        }
+
+
+        .import-area {
+
+            border: 1px solid #ccc;
+
+            border-radius: 10px;
+
+            padding: 20px;
+
+            margin-bottom: 25px;
+
+        }
+
+
+        .deck-area {
+
+            margin-bottom: 20px;
+
+        }
+
+
+        select,
+        input {
+
+            padding: 8px;
+
+            font-size: 16px;
+
+            border: 1px solid #bbb;
+
+            border-radius: 6px;
+
+        }
+
+
+        button {
+
+            padding: 10px 16px;
+
+            margin: 5px;
+
+            border: 1px solid #ccc;
+
+            border-radius: 7px;
+
+            background: white;
+
+            cursor: pointer;
+
+        }
+
+
+        button:hover {
+
+            background: #f2f2f2;
+
+        }
+
+
+        table {
+
+            width: 100%;
+
+            border-collapse: collapse;
+
+            margin-top: 20px;
+
+        }
+
+
+        th,
+        td {
+
+            border: 1px solid #ccc;
+
+            padding: 8px;
+
+            text-align: left;
+
+            vertical-align: middle;
+
+        }
+
+
+        th {
+
+            background: #f5f5f5;
+
+        }
+
+
+        td input {
+
+            width: calc(100% - 16px);
+
+        }
+
+
+        .type-cell {
+
+            width: 130px;
+
+            text-align: center;
+
+        }
+
+
+        .delete-cell {
+
+            width: 80px;
+
+            text-align: center;
+
+        }
+
+
+        .delete-button {
+
+            color: #a33;
+
+        }
+
+
+        .answer-cell {
+
+            min-width: 250px;
+
+        }
+
+
+        .drawing-answer {
+
+            display: flex;
+
+            flex-direction: column;
+
+            align-items: center;
+
+            gap: 8px;
+
+        }
+
+
+        .drawing-mode-buttons {
+
+            display: flex;
+
+            gap: 6px;
+
+        }
+
+
+        .drawing-mode-button {
+
+            margin: 0;
+
+            padding: 6px 10px;
+
+            font-size: 13px;
+
+        }
+
+
+        .drawing-mode-button.selected {
+
+            border: 2px solid #222;
+
+            font-weight: bold;
+
+        }
+
+
+        .canvas-draw-area,
+        .upload-draw-area {
+
+            display: flex;
+
+            flex-direction: column;
+
+            align-items: center;
+
+            gap: 8px;
+
+        }
+
+
+        .drawing-answer canvas {
+
+            display: block;
+
+            width: 100%;
+
+            max-width: 350px;
+
+            height: 180px;
+
+            border: 2px solid #bbb;
+
+            border-radius: 8px;
+
+            background: white;
+
+            touch-action: none;
+
+            cursor: crosshair;
+
+        }
+
+
+        .drawing-answer button {
+
+            margin: 0;
+
+            padding: 7px 12px;
+
+            font-size: 14px;
+
+        }
+
+
+        .drawing-preview {
+
+            display: block;
+
+            width: 100%;
+
+            max-width: 350px;
+
+            max-height: 220px;
+
+            object-fit: contain;
+
+            border: 2px solid #bbb;
+
+            border-radius: 8px;
+
+            background: white;
+
+        }
+
+
+        .empty-message {
+
+            color: #777;
+
+            text-align: center;
+
+            padding: 30px;
+
+        }
+
+
+        .actions {
+
+            margin-top: 20px;
+
+        }
+
+
+        .status {
+
+            margin-top: 15px;
+
+            color: #555;
+
+        }
+
+
+        .hidden {
+
+            display: none !important;
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<div class="top">
+
+    <a href="index.html">
+        ← Accueil
+    </a>
+
+    <h1>
+        Importer des cartes
+    </h1>
+
+</div>
+
+
+
+<div class="import-area">
+
+
+    <div class="deck-area">
+
+        <label for="deck-select">
+            Deck :
+        </label>
+
+        <select id="deck-select"></select>
+
+    </div>
+
+
+
+    <div>
+
+        <input
+            id="image-input"
+            type="file"
+            accept="image/*"
+        >
+
+        <button id="ocr-button">
+            Scanner avec OCR
+        </button>
+
+        <button id="add-row">
+            Ajouter une ligne
+        </button>
+
+    </div>
+
+
+    <div
+        id="status"
+        class="status"
+    ></div>
+
+
+</div>
+
+
+
+<table>
+
+    <thead>
+
+        <tr>
+
+            <th>
+                Question
+            </th>
+
+            <th>
+                Transfert
+            </th>
+
+            <th>
+                Réponse
+            </th>
+
+            <th class="type-cell">
+                Type
+            </th>
+
+            <th class="delete-cell">
+                Supprimer
+            </th>
+
+        </tr>
+
+    </thead>
+
+
+    <tbody id="cards-table">
+
+        <tr id="empty-row">
+
+            <td
+                colspan="5"
+                class="empty-message"
+            >
+                Aucune carte pour le moment.
+            </td>
+
+        </tr>
+
+    </tbody>
+
+</table>
+
+
+
+<div class="actions">
+
+    <button id="create-cards">
+        Créer les cartes
+    </button>
+
+</div>
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+<script src="JS/import.js"></script>
+
+
+</body>
+
+</html>
