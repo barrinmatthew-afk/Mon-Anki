@@ -59,6 +59,43 @@
         }
 
 
+        #add-card-section {
+
+            margin-bottom: 25px;
+
+            padding: 18px;
+
+            border: 1px solid #ddd;
+
+            border-radius: 10px;
+
+        }
+
+
+        #add-card-section h2 {
+
+            margin-top: 0;
+
+        }
+
+
+        #add-card-section input {
+
+            padding: 8px;
+
+            font-size: 15px;
+
+            border: 1px solid #bbb;
+
+            border-radius: 5px;
+
+            margin-right: 5px;
+
+            width: 220px;
+
+        }
+
+
         table {
 
             width: 100%;
@@ -226,6 +263,15 @@
 
         }
 
+
+        #sync-status {
+
+            color: #666;
+
+            margin-top: 15px;
+
+        }
+
     </style>
 
 </head>
@@ -243,10 +289,54 @@
 </div>
 
 
-<h1 id="deck-title">Deck</h1>
+<h1 id="deck-title">
+    Deck
+</h1>
+
 
 <p id="deck-subtitle"></p>
 
+
+<!-- =========================
+     AJOUTER UNE CARTE
+========================= -->
+
+<div id="add-card-section">
+
+    <h2>
+        Ajouter une carte
+    </h2>
+
+
+    <input
+        type="text"
+        id="new-question"
+        placeholder="Question"
+    >
+
+
+    <input
+        type="text"
+        id="new-answer"
+        placeholder="Réponse"
+    >
+
+
+    <button id="add-card-button">
+
+        ➕ Ajouter
+
+    </button>
+
+
+    <p id="sync-status"></p>
+
+</div>
+
+
+<!-- =========================
+     CARTES
+========================= -->
 
 <table>
 
@@ -254,13 +344,21 @@
 
         <tr>
 
-            <th>Question</th>
+            <th>
+                Question
+            </th>
 
-            <th>Réponse</th>
+            <th>
+                Réponse
+            </th>
 
-            <th class="type-cell">Type</th>
+            <th class="type-cell">
+                Type
+            </th>
 
-            <th class="actions-cell">Actions</th>
+            <th class="actions-cell">
+                Actions
+            </th>
 
         </tr>
 
@@ -275,7 +373,9 @@
                 colspan="4"
                 class="empty-message"
             >
+
                 Ce deck ne contient aucune carte.
+
             </td>
 
         </tr>
@@ -285,7 +385,31 @@
 </table>
 
 
-<script src="JS/deck.js"></script>
+<!-- =========================
+     FIREBASE + DECK
+========================= -->
+
+<script type="module">
+
+    import {
+
+        waitForAuth,
+        syncLocalDecksWithCloud
+
+    } from "./JS/firebase.js";
+
+
+    const user =
+        await waitForAuth();
+
+
+    await syncLocalDecksWithCloud();
+
+
+    await import("./JS/deck.js");
+
+</script>
+
 
 </body>
 
