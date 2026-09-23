@@ -487,8 +487,22 @@
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
-<script src="JS/import.js"></script>
+<script type="module">
 
+    import {
+        waitForAuth,
+        syncLocalDecksWithCloud
+    } from "./JS/firebase.js";
+
+
+    await waitForAuth();
+
+    await syncLocalDecksWithCloud();
+
+
+    await import("./JS/import.js");
+
+</script>
 
 </body>
 

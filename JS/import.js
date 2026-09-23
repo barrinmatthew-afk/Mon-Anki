@@ -1,32 +1,63 @@
-const decks = JSON.parse(localStorage.getItem("decks")) || [];
-
-const deckSelect = document.getElementById("deck-select");
-const cardsTable = document.getElementById("cards-table");
-const imageInput = document.getElementById("image-input");
-const ocrButton = document.getElementById("ocr-button");
-const createCardsButton = document.getElementById("create-cards");
-const statusElement = document.getElementById("status");
+import {
+    saveDecksToCloud
+} from "./firebase.js";
 
 
-/*
- * Ligne fixe, toujours en bas du tableau,
- * qui sert à ajouter une nouvelle carte
- * juste à la suite de la dernière ajoutée.
- */
+const decks =
+    JSON.parse(
+        localStorage.getItem("decks")
+    ) || [];
+
+
+const deckSelect =
+    document.getElementById("deck-select");
+
+const cardsTable =
+    document.getElementById("cards-table");
+
+const imageInput =
+    document.getElementById("image-input");
+
+const ocrButton =
+    document.getElementById("ocr-button");
+
+const createCardsButton =
+    document.getElementById("create-cards");
+
+const statusElement =
+    document.getElementById("status");
+
 
 let addRowControlRow = null;
 
 
-
-function saveDecks() {
+async function saveDecks() {
 
     localStorage.setItem(
         "decks",
         JSON.stringify(decks)
     );
 
-}
+    try {
 
+        await saveDecksToCloud(decks);
+
+        statusElement.textContent =
+            "✓ Cartes enregistrées et synchronisées.";
+
+    } catch (error) {
+
+        console.error(
+            "Erreur de synchronisation :",
+            error
+        );
+
+        statusElement.textContent =
+            "⚠ Cartes enregistrées localement, mais erreur de synchronisation.";
+
+    }
+
+}
 
 
 function populateDeckSelect() {
@@ -35,28 +66,31 @@ function populateDeckSelect() {
 
     decks.forEach(deck => {
 
-        const option = document.createElement("option");
+        const option =
+            document.createElement("option");
 
         option.value = deck.name;
-
         option.textContent = deck.name;
 
         deckSelect.appendChild(option);
 
     });
 
-
-    const selectedDeck = localStorage.getItem("selectedDeck");
+    const selectedDeck =
+        localStorage.getItem("selectedDeck");
 
     if (selectedDeck) {
 
-        const exists = decks.some(
-            deck => deck.name === selectedDeck
-        );
+        const exists =
+            decks.some(
+                deck =>
+                    deck.name === selectedDeck
+            );
 
         if (exists) {
 
-            deckSelect.value = selectedDeck;
+            deckSelect.value =
+                selectedDeck;
 
         }
 
@@ -65,27 +99,27 @@ function populateDeckSelect() {
 }
 
 
-
 function resizeImageToDataURL(
     file,
     maxDimension,
     callback
 ) {
 
-    const reader = new FileReader();
-
+    const reader =
+        new FileReader();
 
     reader.onload = function () {
 
-        const image = new Image();
-
+        const image =
+            new Image();
 
         image.onload = function () {
 
-            let width = image.width;
+            let width =
+                image.width;
 
-            let height = image.height;
-
+            let height =
+                image.height;
 
             if (
                 width > maxDimension ||
@@ -96,41 +130,42 @@ function resizeImageToDataURL(
 
                     height =
                         Math.round(
-                            height * (maxDimension / width)
+                            height *
+                            (
+                                maxDimension /
+                                width
+                            )
                         );
 
-                    width = maxDimension;
+                    width =
+                        maxDimension;
 
                 } else {
 
                     width =
                         Math.round(
-                            width * (maxDimension / height)
+                            width *
+                            (
+                                maxDimension /
+                                height
+                            )
                         );
 
-                    height = maxDimension;
+                    height =
+                        maxDimension;
 
                 }
 
             }
 
-
             const canvas =
                 document.createElement("canvas");
 
             canvas.width = width;
-
             canvas.height = height;
-
 
             const context =
                 canvas.getContext("2d");
-
-            /*
-             * Fond blanc : évite un fond
-             * transparent qui deviendrait noir
-             * une fois converti en JPEG.
-             */
 
             context.fillStyle = "white";
 
@@ -149,7 +184,6 @@ function resizeImageToDataURL(
                 height
             );
 
-
             callback(
                 canvas.toDataURL(
                     "image/jpeg",
@@ -159,31 +193,24 @@ function resizeImageToDataURL(
 
         };
 
-
-        image.src = reader.result;
+        image.src =
+            reader.result;
 
     };
-
 
     reader.readAsDataURL(file);
 
 }
 
 
-
 function createDrawingAnswer() {
 
-    const wrapper = document.createElement("div");
+    const wrapper =
+        document.createElement("div");
 
-    wrapper.className = "drawing-answer";
+    wrapper.className =
+        "drawing-answer";
 
-
-    /*
-     * Deux façons de fournir le dessin :
-     * - le dessiner ici à la souris/au doigt
-     * - importer une photo/scan d'un dessin
-     *   déjà fait sur papier
-     */
 
     const modeButtons =
         document.createElement("div");
@@ -216,12 +243,14 @@ function createDrawingAnswer() {
         "drawing-mode-button";
 
 
-    modeButtons.appendChild(drawModeButton);
+    modeButtons.appendChild(
+        drawModeButton
+    );
 
-    modeButtons.appendChild(uploadModeButton);
+    modeButtons.appendChild(
+        uploadModeButton
+    );
 
-
-    /* --- Zone dessin à la souris --- */
 
     const canvasArea =
         document.createElement("div");
@@ -234,7 +263,6 @@ function createDrawingAnswer() {
         document.createElement("canvas");
 
     canvas.width = 700;
-
     canvas.height = 360;
 
 
@@ -242,16 +270,12 @@ function createDrawingAnswer() {
         document.createElement("button");
 
     clearButton.type = "button";
-
     clearButton.textContent = "Effacer";
 
 
     canvasArea.appendChild(canvas);
-
     canvasArea.appendChild(clearButton);
 
-
-    /* --- Zone import d'image --- */
 
     const uploadArea =
         document.createElement("div");
@@ -264,7 +288,6 @@ function createDrawingAnswer() {
         document.createElement("input");
 
     fileInput.type = "file";
-
     fileInput.accept = "image/*";
 
 
@@ -276,53 +299,56 @@ function createDrawingAnswer() {
 
 
     uploadArea.appendChild(fileInput);
-
     uploadArea.appendChild(preview);
 
 
     wrapper.appendChild(modeButtons);
-
     wrapper.appendChild(canvasArea);
-
     wrapper.appendChild(uploadArea);
 
-
-    /* --- Logique dessin à la souris --- */
 
     const context =
         canvas.getContext("2d");
 
 
     context.lineWidth = 4;
-
     context.lineCap = "round";
-
     context.lineJoin = "round";
-
     context.strokeStyle = "#222";
 
 
     let drawing = false;
-
     let currentSubMode = "draw";
-
     let uploadedDataURL = "";
 
 
     function getPosition(event) {
 
-        const rect = canvas.getBoundingClientRect();
+        const rect =
+            canvas.getBoundingClientRect();
 
-        const scaleX = canvas.width / rect.width;
+        const scaleX =
+            canvas.width / rect.width;
 
-        const scaleY = canvas.height / rect.height;
+        const scaleY =
+            canvas.height / rect.height;
 
 
         return {
 
-            x: (event.clientX - rect.left) * scaleX,
+            x:
+                (
+                    event.clientX -
+                    rect.left
+                ) *
+                scaleX,
 
-            y: (event.clientY - rect.top) * scaleY
+            y:
+                (
+                    event.clientY -
+                    rect.top
+                ) *
+                scaleY
 
         };
 
@@ -335,9 +361,12 @@ function createDrawingAnswer() {
 
             drawing = true;
 
-            canvas.setPointerCapture(event.pointerId);
+            canvas.setPointerCapture(
+                event.pointerId
+            );
 
-            const position = getPosition(event);
+            const position =
+                getPosition(event);
 
             context.beginPath();
 
@@ -355,14 +384,11 @@ function createDrawingAnswer() {
         event => {
 
             if (!drawing) {
-
                 return;
-
             }
 
-
-            const position = getPosition(event);
-
+            const position =
+                getPosition(event);
 
             context.lineTo(
                 position.x,
@@ -381,10 +407,14 @@ function createDrawingAnswer() {
 
         if (
             event.pointerId !== undefined &&
-            canvas.hasPointerCapture(event.pointerId)
+            canvas.hasPointerCapture(
+                event.pointerId
+            )
         ) {
 
-            canvas.releasePointerCapture(event.pointerId);
+            canvas.releasePointerCapture(
+                event.pointerId
+            );
 
         }
 
@@ -395,7 +425,6 @@ function createDrawingAnswer() {
         "pointerup",
         stopDrawing
     );
-
 
     canvas.addEventListener(
         "pointercancel",
@@ -418,19 +447,25 @@ function createDrawingAnswer() {
     );
 
 
-    /* --- Bascule entre les deux sous-modes --- */
-
     function selectDrawMode() {
 
         currentSubMode = "draw";
 
-        drawModeButton.classList.add("selected");
+        drawModeButton.classList.add(
+            "selected"
+        );
 
-        uploadModeButton.classList.remove("selected");
+        uploadModeButton.classList.remove(
+            "selected"
+        );
 
-        canvasArea.classList.remove("hidden");
+        canvasArea.classList.remove(
+            "hidden"
+        );
 
-        uploadArea.classList.add("hidden");
+        uploadArea.classList.add(
+            "hidden"
+        );
 
     }
 
@@ -439,13 +474,21 @@ function createDrawingAnswer() {
 
         currentSubMode = "upload";
 
-        uploadModeButton.classList.add("selected");
+        uploadModeButton.classList.add(
+            "selected"
+        );
 
-        drawModeButton.classList.remove("selected");
+        drawModeButton.classList.remove(
+            "selected"
+        );
 
-        uploadArea.classList.remove("hidden");
+        uploadArea.classList.remove(
+            "hidden"
+        );
 
-        canvasArea.classList.add("hidden");
+        canvasArea.classList.add(
+            "hidden"
+        );
 
     }
 
@@ -455,14 +498,11 @@ function createDrawingAnswer() {
         selectDrawMode
     );
 
-
     uploadModeButton.addEventListener(
         "click",
         selectUploadMode
     );
 
-
-    /* --- Import d'une image existante --- */
 
     fileInput.addEventListener(
         "change",
@@ -472,22 +512,23 @@ function createDrawingAnswer() {
                 fileInput.files[0];
 
             if (!file) {
-
                 return;
-
             }
-
 
             resizeImageToDataURL(
                 file,
                 1000,
                 dataURL => {
 
-                    uploadedDataURL = dataURL;
+                    uploadedDataURL =
+                        dataURL;
 
-                    preview.src = dataURL;
+                    preview.src =
+                        dataURL;
 
-                    preview.classList.remove("hidden");
+                    preview.classList.remove(
+                        "hidden"
+                    );
 
                 }
             );
@@ -496,18 +537,22 @@ function createDrawingAnswer() {
     );
 
 
-    wrapper.getDrawingData = function () {
+    wrapper.getDrawingData =
+        function () {
 
-        if (currentSubMode === "upload") {
+            if (
+                currentSubMode === "upload"
+            ) {
 
-            return uploadedDataURL;
+                return uploadedDataURL;
 
-        }
+            }
 
+            return canvas.toDataURL(
+                "image/png"
+            );
 
-        return canvas.toDataURL("image/png");
-
-    };
+        };
 
 
     return wrapper;
@@ -515,22 +560,25 @@ function createDrawingAnswer() {
 }
 
 
-
 function createAddRowControlRow() {
 
-    const row = document.createElement("tr");
+    const row =
+        document.createElement("tr");
 
-    row.id = "add-row-control";
+    row.id =
+        "add-row-control";
 
 
-    const cell = document.createElement("td");
+    const cell =
+        document.createElement("td");
 
     cell.colSpan = 5;
+    cell.className =
+        "add-row-cell";
 
-    cell.className = "add-row-cell";
 
-
-    const button = document.createElement("button");
+    const button =
+        document.createElement("button");
 
     button.type = "button";
 
@@ -549,7 +597,6 @@ function createAddRowControlRow() {
 
 
     cell.appendChild(button);
-
     row.appendChild(cell);
 
 
@@ -558,54 +605,68 @@ function createAddRowControlRow() {
 }
 
 
-
 function addRow(
     question = "",
     answer = "",
     cardMode = "text"
 ) {
 
-    const emptyRow = document.getElementById("empty-row");
+    const emptyRow =
+        document.getElementById(
+            "empty-row"
+        );
+
 
     if (emptyRow) {
-
         emptyRow.remove();
-
     }
 
 
-    const row = document.createElement("tr");
+    const row =
+        document.createElement("tr");
 
 
-    const questionCell = document.createElement("td");
+    const questionCell =
+        document.createElement("td");
 
-    const questionInput = document.createElement("input");
+    const questionInput =
+        document.createElement("input");
 
     questionInput.type = "text";
+    questionInput.className =
+        "question-input";
 
-    questionInput.className = "question-input";
+    questionInput.placeholder =
+        "Question";
 
-    questionInput.placeholder = "Question";
-
-    questionInput.value = question;
-
-    questionCell.appendChild(questionInput);
+    questionInput.value =
+        question;
 
 
+    questionCell.appendChild(
+        questionInput
+    );
 
-    const transferCell = document.createElement("td");
 
-    transferCell.className = "transfer-cell";
+    const transferCell =
+        document.createElement("td");
 
-    const transferButton = document.createElement("button");
+    transferCell.className =
+        "transfer-cell";
+
+
+    const transferButton =
+        document.createElement("button");
 
     transferButton.type = "button";
+    transferButton.className =
+        "transfer-button";
 
-    transferButton.className = "transfer-button";
+    transferButton.title =
+        "Échanger la question et la réponse";
 
-    transferButton.title = "Échanger la question et la réponse";
-
-    transferButton.textContent = "⇄";
+    transferButton.textContent =
+        "⇄";
 
 
     transferButton.addEventListener(
@@ -613,87 +674,111 @@ function addRow(
         () => {
 
             const answerInputElement =
-                answerCell.querySelector(".answer-input");
+                answerCell.querySelector(
+                    ".answer-input"
+                );
 
             if (!answerInputElement) {
-
                 return;
-
             }
 
-            const questionValue = questionInput.value;
+            const questionValue =
+                questionInput.value;
 
-            const answerValue = answerInputElement.value;
+            const answerValue =
+                answerInputElement.value;
 
-            questionInput.value = answerValue;
 
-            answerInputElement.value = questionValue;
+            questionInput.value =
+                answerValue;
+
+            answerInputElement.value =
+                questionValue;
 
         }
     );
 
 
-    transferCell.appendChild(transferButton);
+    transferCell.appendChild(
+        transferButton
+    );
 
 
+    const answerCell =
+        document.createElement("td");
 
-    const answerCell = document.createElement("td");
-
-    answerCell.className = "answer-cell";
-
-
-    const typeCell = document.createElement("td");
-
-    typeCell.className = "type-cell";
+    answerCell.className =
+        "answer-cell";
 
 
-    const typeSelect = document.createElement("select");
+    const typeCell =
+        document.createElement("td");
 
-    typeSelect.className = "type-select";
+    typeCell.className =
+        "type-cell";
 
 
-    const textOption = document.createElement("option");
+    const typeSelect =
+        document.createElement("select");
+
+    typeSelect.className =
+        "type-select";
+
+
+    const textOption =
+        document.createElement("option");
 
     textOption.value = "text";
-
     textOption.textContent = "Texte";
 
 
-    const drawingOption = document.createElement("option");
+    const drawingOption =
+        document.createElement("option");
 
     drawingOption.value = "drawing";
-
-    drawingOption.textContent = "✏️ Dessin";
-
-
-    typeSelect.appendChild(textOption);
-
-    typeSelect.appendChild(drawingOption);
+    drawingOption.textContent =
+        "✏️ Dessin";
 
 
-    typeSelect.value = cardMode;
+    typeSelect.appendChild(
+        textOption
+    );
+
+    typeSelect.appendChild(
+        drawingOption
+    );
 
 
-    typeCell.appendChild(typeSelect);
+    typeSelect.value =
+        cardMode;
 
 
+    typeCell.appendChild(
+        typeSelect
+    );
 
-    const deleteCell = document.createElement("td");
 
-    deleteCell.className = "delete-cell";
+    const deleteCell =
+        document.createElement("td");
+
+    deleteCell.className =
+        "delete-cell";
 
 
-    const deleteButton = document.createElement("button");
+    const deleteButton =
+        document.createElement("button");
 
     deleteButton.type = "button";
+    deleteButton.className =
+        "delete-button";
 
-    deleteButton.className = "delete-button";
+    deleteButton.textContent =
+        "Supprimer";
 
-    deleteButton.textContent = "Supprimer";
 
-
-    deleteCell.appendChild(deleteButton);
-
+    deleteCell.appendChild(
+        deleteButton
+    );
 
 
     let drawingWrapper = null;
@@ -704,18 +789,24 @@ function addRow(
         answerCell.innerHTML = "";
 
 
-        const answerInput = document.createElement("input");
+        const answerInput =
+            document.createElement("input");
 
         answerInput.type = "text";
 
-        answerInput.className = "answer-input";
+        answerInput.className =
+            "answer-input";
 
-        answerInput.placeholder = "Réponse";
+        answerInput.placeholder =
+            "Réponse";
 
-        answerInput.value = answer;
+        answerInput.value =
+            answer;
 
 
-        answerCell.appendChild(answerInput);
+        answerCell.appendChild(
+            answerInput
+        );
 
 
         drawingWrapper = null;
@@ -723,26 +814,30 @@ function addRow(
     }
 
 
-
     function displayDrawingAnswer() {
 
         answerCell.innerHTML = "";
 
 
-        drawingWrapper = createDrawingAnswer();
+        drawingWrapper =
+            createDrawingAnswer();
 
 
-        answerCell.appendChild(drawingWrapper);
+        answerCell.appendChild(
+            drawingWrapper
+        );
 
     }
-
 
 
     typeSelect.addEventListener(
         "change",
         () => {
 
-            if (typeSelect.value === "drawing") {
+            if (
+                typeSelect.value ===
+                "drawing"
+            ) {
 
                 displayDrawingAnswer();
 
@@ -754,15 +849,16 @@ function addRow(
 
 
             transferButton.disabled =
-                typeSelect.value === "drawing";
+                typeSelect.value ===
+                "drawing";
 
         }
     );
 
 
     transferButton.disabled =
-        typeSelect.value === "drawing";
-
+        typeSelect.value ===
+        "drawing";
 
 
     deleteButton.addEventListener(
@@ -771,8 +867,9 @@ function addRow(
 
             row.remove();
 
-
-            if (getRows().length === 0) {
+            if (
+                getRows().length === 0
+            ) {
 
                 addEmptyMessage();
 
@@ -782,24 +879,23 @@ function addRow(
     );
 
 
-
     row.appendChild(questionCell);
-
     row.appendChild(transferCell);
-
     row.appendChild(answerCell);
-
     row.appendChild(typeCell);
-
     row.appendChild(deleteCell);
 
 
     if (
         addRowControlRow &&
-        addRowControlRow.parentNode === cardsTable
+        addRowControlRow.parentNode ===
+        cardsTable
     ) {
 
-        cardsTable.insertBefore(row, addRowControlRow);
+        cardsTable.insertBefore(
+            row,
+            addRowControlRow
+        );
 
     } else {
 
@@ -808,7 +904,9 @@ function addRow(
     }
 
 
-    if (cardMode === "drawing") {
+    if (
+        cardMode === "drawing"
+    ) {
 
         displayDrawingAnswer();
 
@@ -821,31 +919,40 @@ function addRow(
 }
 
 
-
 function addEmptyMessage() {
 
-    const row = document.createElement("tr");
+    const row =
+        document.createElement("tr");
 
-    row.id = "empty-row";
+    row.id =
+        "empty-row";
 
 
-    const cell = document.createElement("td");
+    const cell =
+        document.createElement("td");
 
     cell.colSpan = 5;
 
-    cell.className = "empty-message";
+    cell.className =
+        "empty-message";
 
-    cell.textContent = "Aucune carte pour le moment.";
+    cell.textContent =
+        "Aucune carte pour le moment.";
 
 
     row.appendChild(cell);
 
+
     if (
         addRowControlRow &&
-        addRowControlRow.parentNode === cardsTable
+        addRowControlRow.parentNode ===
+        cardsTable
     ) {
 
-        cardsTable.insertBefore(row, addRowControlRow);
+        cardsTable.insertBefore(
+            row,
+            addRowControlRow
+        );
 
     } else {
 
@@ -854,7 +961,6 @@ function addEmptyMessage() {
     }
 
 }
-
 
 
 function getRows() {
@@ -870,13 +976,10 @@ function getRows() {
 }
 
 
-
 function recognizeImage(file) {
 
     if (!file) {
-
         return;
-
     }
 
 
@@ -892,8 +995,10 @@ function recognizeImage(file) {
             logger: message => {
 
                 if (
-                    message.status === "recognizing text" &&
-                    typeof message.progress === "number"
+                    message.status ===
+                    "recognizing text" &&
+                    typeof message.progress ===
+                    "number"
                 ) {
 
                     const percentage =
@@ -931,14 +1036,17 @@ function recognizeImage(file) {
             }
 
 
-            const lines = text
-                .split("\n")
-                .map(
-                    line => line.trim()
-                )
-                .filter(
-                    line => line.length > 0
-                );
+            const lines =
+                text
+                    .split("\n")
+                    .map(
+                        line =>
+                            line.trim()
+                    )
+                    .filter(
+                        line =>
+                            line.length > 0
+                    );
 
 
             lines.forEach(line => {
@@ -968,8 +1076,7 @@ function recognizeImage(file) {
 }
 
 
-
-function createCards() {
+async function createCards() {
 
     const selectedDeckName =
         deckSelect.value;
@@ -978,7 +1085,8 @@ function createCards() {
     const selectedDeck =
         decks.find(
             deck =>
-                deck.name === selectedDeckName
+                deck.name ===
+                selectedDeckName
         );
 
 
@@ -993,7 +1101,8 @@ function createCards() {
     }
 
 
-    const rows = getRows();
+    const rows =
+        getRows();
 
 
     if (rows.length === 0) {
@@ -1017,7 +1126,6 @@ function createCards() {
                 ".question-input"
             );
 
-
         const typeSelect =
             row.querySelector(
                 ".type-select"
@@ -1027,24 +1135,22 @@ function createCards() {
         const question =
             questionInput.value.trim();
 
-
         const cardMode =
             typeSelect.value;
 
 
         if (!question) {
-
             continue;
-
         }
 
 
         let answer = "";
-
         let drawing = "";
 
 
-        if (cardMode === "drawing") {
+        if (
+            cardMode === "drawing"
+        ) {
 
             const drawingWrapper =
                 row.querySelector(
@@ -1055,7 +1161,8 @@ function createCards() {
             if (drawingWrapper) {
 
                 drawing =
-                    drawingWrapper.getDrawingData();
+                    drawingWrapper
+                        .getDrawingData();
 
             }
 
@@ -1081,9 +1188,7 @@ function createCards() {
             cardMode === "text" &&
             !answer
         ) {
-
             continue;
-
         }
 
 
@@ -1091,9 +1196,7 @@ function createCards() {
             cardMode === "drawing" &&
             !drawing
         ) {
-
             continue;
-
         }
 
 
@@ -1118,7 +1221,9 @@ function createCards() {
     }
 
 
-    if (newCards.length === 0) {
+    if (
+        newCards.length === 0
+    ) {
 
         alert(
             "Aucune carte valide à créer."
@@ -1134,13 +1239,17 @@ function createCards() {
     );
 
 
-    saveDecks();
-
-
     localStorage.setItem(
         "selectedDeck",
         selectedDeck.name
     );
+
+
+    statusElement.textContent =
+        "Enregistrement des cartes...";
+
+
+    await saveDecks();
 
 
     alert(
@@ -1148,21 +1257,25 @@ function createCards() {
     );
 
 
-    cardsTable.innerHTML = "";
+    cardsTable.innerHTML =
+        "";
 
     addEmptyMessage();
 
-    cardsTable.appendChild(addRowControlRow);
+    cardsTable.appendChild(
+        addRowControlRow
+    );
 
 }
-
 
 
 ocrButton.addEventListener(
     "click",
     () => {
 
-        if (!imageInput.files.length) {
+        if (
+            !imageInput.files.length
+        ) {
 
             alert(
                 "Choisis d'abord une image."
@@ -1181,12 +1294,10 @@ ocrButton.addEventListener(
 );
 
 
-
 createCardsButton.addEventListener(
     "click",
     createCards
 );
-
 
 
 deckSelect.addEventListener(
@@ -1202,10 +1313,13 @@ deckSelect.addEventListener(
 );
 
 
-
 populateDeckSelect();
 
 
-addRowControlRow = createAddRowControlRow();
+addRowControlRow =
+    createAddRowControlRow();
 
-cardsTable.appendChild(addRowControlRow);
+
+cardsTable.appendChild(
+    addRowControlRow
+);
