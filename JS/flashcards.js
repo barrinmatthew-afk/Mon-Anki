@@ -2,26 +2,32 @@
 // FLASHCARDS — MON ANKI
 // ==============================
 
+
 const decks =
     JSON.parse(
         localStorage.getItem("decks")
     ) || [];
 
+
 const selectedDeckName =
     localStorage.getItem("selectedDeck");
+
 
 const selectedDirection =
     localStorage.getItem("selectedDirection") ||
     "random";
 
+
 const selectedMode =
     localStorage.getItem("selectedMode") ||
     "flashcard";
+
 
 const newCardLimit =
     Number(
         localStorage.getItem("newCardLimit")
     ) || 10;
+
 
 const reviewLimit =
     Number(
@@ -36,56 +42,74 @@ const reviewLimit =
 const cardElement =
     document.getElementById("card");
 
+
 const questionElement =
     document.getElementById("question");
+
 
 const answerElement =
     document.getElementById("answer");
 
+
 const resultElement =
     document.getElementById("result");
+
 
 const metaElement =
     document.getElementById("meta");
 
+
 const progressElement =
     document.getElementById("progress");
+
 
 const showAnswerButton =
     document.getElementById("show-answer");
 
+
 const showArea =
     document.getElementById("show-area");
+
 
 const ratingArea =
     document.getElementById("rating-area");
 
+
 const skipButton =
     document.getElementById("skip-button");
+
 
 const undoButton =
     document.getElementById("undo-button");
 
+
 const completionElement =
     document.getElementById("completion");
+
 
 const completionText =
     document.getElementById("completion-text");
 
+
 const writingArea =
     document.getElementById("writing-area");
+
 
 const answerInput =
     document.getElementById("answer-input");
 
+
 const drawingArea =
     document.getElementById("drawing-area");
+
 
 const drawingCanvas =
     document.getElementById("drawing-canvas");
 
+
 const clearDrawingButton =
     document.getElementById("clear-drawing");
+
 
 const referenceDrawing =
     document.getElementById("reference-drawing");
@@ -100,11 +124,19 @@ const deck =
         d => d.name === selectedDeckName
     );
 
+
 if (!deck) {
+
     alert("Deck introuvable.");
-    window.location.href = "index.html";
-    throw new Error("Deck introuvable.");
+
+    window.location.href =
+        "index.html";
+
+    throw new Error(
+        "Deck introuvable."
+    );
 }
+
 
 const cards =
     Array.isArray(deck.cards)
@@ -116,35 +148,52 @@ const cards =
 // SAUVEGARDE
 // ==============================
 
-function saveDecks(decksToSave) {
+async function saveDecks(
+    decksToSave
+) {
+
+    /*
+     * 1. Sauvegarde locale immédiate.
+     */
 
     localStorage.setItem(
         "decks",
-        JSON.stringify(decksToSave)
+        JSON.stringify(
+            decksToSave
+        )
     );
 
+
     /*
-     * Firebase est éventuellement disponible
-     * grâce au système de synchronisation
-     * déjà installé dans Mon Anki.
+     * 2. Sauvegarde Firestore.
      *
-     * On sauvegarde localement immédiatement.
-     * La synchronisation cloud sera ajoutée
-     * indépendamment sans bloquer la session.
+     * On attend réellement la fin
+     * de cette sauvegarde.
      */
 
     if (
         typeof window.saveDecksToCloud ===
         "function"
     ) {
-        window.saveDecksToCloud(
-            decksToSave
-        ).catch(error => {
+
+        try {
+
+            await window.saveDecksToCloud(
+                decksToSave
+            );
+
+            console.log(
+                "Progression sauvegardée dans Firestore."
+            );
+
+        } catch (error) {
+
             console.error(
                 "Erreur de synchronisation Firestore :",
                 error
             );
-        });
+
+        }
     }
 }
 
@@ -176,51 +225,60 @@ const defaultSettings = {
 // NORMALISATION DES CARTES
 // ==============================
 
-cards.forEach(card => {
+cards.forEach(
+    card => {
 
-    if (
-        typeof card.level !==
-        "number"
-    ) {
-        card.level = 0;
-    }
+        if (
+            typeof card.level !==
+            "number"
+        ) {
+            card.level = 0;
+        }
 
-    if (
-        typeof card.interval !==
-        "number"
-    ) {
-        card.interval = 1;
-    }
 
-    if (
-        typeof card.nextReview !==
-        "number"
-    ) {
-        card.nextReview = 0;
-    }
+        if (
+            typeof card.interval !==
+            "number"
+        ) {
+            card.interval = 1;
+        }
 
-    if (
-        typeof card.reps !==
-        "number"
-    ) {
-        card.reps = 0;
-    }
 
-    if (!card.state) {
-        card.state = "new";
-    }
+        if (
+            typeof card.nextReview !==
+            "number"
+        ) {
+            card.nextReview = 0;
+        }
 
-    if (
-        typeof card.step !==
-        "number"
-    ) {
-        card.step = 0;
-    }
 
-    if (!card.mode) {
-        card.mode = "text";
+        if (
+            typeof card.reps !==
+            "number"
+        ) {
+            card.reps = 0;
+        }
+
+
+        if (!card.state) {
+            card.state = "new";
+        }
+
+
+        if (
+            typeof card.step !==
+            "number"
+        ) {
+            card.step = 0;
+        }
+
+
+        if (!card.mode) {
+            card.mode = "text";
+        }
+
     }
-});
+);
 
 
 // ==============================
@@ -228,7 +286,9 @@ cards.forEach(card => {
 // ==============================
 
 function now() {
+
     return Date.now();
+
 }
 
 
@@ -241,11 +301,13 @@ function buildQueue() {
     const currentTime =
         now();
 
+
     const newCards =
         cards.filter(
             card =>
                 card.state === "new"
         );
+
 
     const learningCards =
         cards.filter(
@@ -254,6 +316,7 @@ function buildQueue() {
                 card.nextReview <= currentTime
         );
 
+
     const reviewCards =
         cards.filter(
             card =>
@@ -261,11 +324,13 @@ function buildQueue() {
                 card.nextReview <= currentTime
         );
 
+
     const limitedNew =
         newCards.slice(
             0,
             newCardLimit
         );
+
 
     const limitedReview =
         reviewCards.slice(
@@ -273,45 +338,66 @@ function buildQueue() {
             reviewLimit
         );
 
+
     return [
+
         ...learningCards,
+
         ...limitedNew,
+
         ...limitedReview
+
     ];
+
 }
+
 
 let queue =
     buildQueue();
 
 
 // ==============================
-// ETAT DE LA SESSION
+// ETAT SESSION
 // ==============================
 
-let currentCard = null;
+let currentCard =
+    null;
 
-let lastAction = null;
+
+let lastAction =
+    null;
 
 
 // ==============================
 // MODE EFFECTIF
 // ==============================
 
-function getEffectiveModeForCard(card) {
+function getEffectiveModeForCard(
+    card
+) {
 
     if (
-        card.mode === "drawing"
+        card.mode ===
+        "drawing"
     ) {
+
         return "drawing";
+
     }
 
+
     if (
-        selectedMode === "drawing"
+        selectedMode ===
+        "drawing"
     ) {
+
         return "flashcard";
+
     }
+
 
     return selectedMode;
+
 }
 
 
@@ -319,35 +405,62 @@ function getEffectiveModeForCard(card) {
 // QUESTION / REPONSE
 // ==============================
 
-function getQuestionAndAnswer(card) {
+function getQuestionAndAnswer(
+    card
+) {
 
     const effectiveMode =
-        getEffectiveModeForCard(card);
+        getEffectiveModeForCard(
+            card
+        );
+
 
     if (
         effectiveMode ===
         "drawing"
     ) {
+
         return {
-            question: card.word,
-            answer: card.answer
+
+            question:
+                card.word,
+
+            answer:
+                card.answer
+
         };
+
     }
+
 
     if (
         selectedDirection ===
         "fr-nl"
     ) {
+
         return {
-            question: card.answer,
-            answer: card.word
+
+            question:
+                card.answer,
+
+            answer:
+                card.word
+
         };
+
     }
 
+
     return {
-        question: card.word,
-        answer: card.answer
+
+        question:
+            card.word,
+
+        answer:
+            card.answer
+
     };
+
 }
 
 
@@ -355,7 +468,9 @@ function getQuestionAndAnswer(card) {
 // NORMALISATION TEXTE
 // ==============================
 
-function normalizeText(text) {
+function normalizeText(
+    text
+) {
 
     return text
         .toLowerCase()
@@ -369,11 +484,12 @@ function normalizeText(text) {
             /\s+/g,
             " "
         );
+
 }
 
 
 // ==============================
-// AFFICHAGE D'UNE CARTE
+// AFFICHAGE CARTE
 // ==============================
 
 function displayCard() {
@@ -381,12 +497,17 @@ function displayCard() {
     if (
         queue.length === 0
     ) {
+
         finishSession();
+
         return;
+
     }
+
 
     currentCard =
         queue[0];
+
 
     const {
         question,
@@ -396,85 +517,110 @@ function displayCard() {
             currentCard
         );
 
+
     questionElement.textContent =
         question;
 
+
     answerElement.textContent =
         answer;
+
 
     answerElement.classList.add(
         "hidden"
     );
 
+
     resultElement.textContent =
         "";
+
 
     resultElement.className =
         "";
 
+
     metaElement.textContent =
         "";
+
 
     referenceDrawing.classList.add(
         "hidden"
     );
 
+
     referenceDrawing.src =
         "";
+
 
     writingArea.classList.add(
         "hidden"
     );
 
+
     drawingArea.classList.add(
         "hidden"
     );
 
+
     showArea.style.display =
         "block";
+
 
     ratingArea.classList.add(
         "hidden"
     );
 
+
     showAnswerButton.disabled =
         false;
+
 
     if (
         answerInput
     ) {
+
         answerInput.value =
             "";
+
     }
+
 
     const effectiveMode =
         getEffectiveModeForCard(
             currentCard
         );
 
+
     if (
         effectiveMode ===
         "writing"
     ) {
+
         writingArea.classList.remove(
             "hidden"
         );
 
         answerInput.focus();
+
     }
+
 
     if (
         effectiveMode ===
         "drawing"
     ) {
+
         drawingArea.classList.remove(
             "hidden"
         );
 
         clearCanvas();
+
     }
 
+
     updateProgress();
+
 }
 
 
@@ -487,15 +633,18 @@ function updateProgress() {
     const total =
         queue.length;
 
+
     const position =
         total === 0
             ? 0
             : 1;
 
+
     progressElement.textContent =
         `${position} carte restante${
             total > 1 ? "s" : ""
         }`;
+
 }
 
 
@@ -515,13 +664,16 @@ function showAnswer() {
         return;
     }
 
+
     const effectiveMode =
         getEffectiveModeForCard(
             currentCard
         );
 
+
     showAnswerButton.disabled =
         true;
+
 
     if (
         effectiveMode ===
@@ -531,32 +683,42 @@ function showAnswer() {
         if (
             currentCard.drawing
         ) {
+
             referenceDrawing.src =
                 currentCard.drawing;
+
 
             referenceDrawing.classList.remove(
                 "hidden"
             );
+
         }
+
 
         showArea.style.display =
             "none";
+
 
         ratingArea.classList.remove(
             "hidden"
         );
 
+
         displayButtonDelays();
 
         return;
+
     }
+
 
     answerElement.classList.remove(
         "hidden"
     );
 
+
     showArea.style.display =
         "none";
+
 
     if (
         effectiveMode ===
@@ -566,13 +728,17 @@ function showAnswer() {
         checkWritingAnswer();
 
         return;
+
     }
+
 
     ratingArea.classList.remove(
         "hidden"
     );
 
+
     displayButtonDelays();
+
 }
 
 
@@ -587,10 +753,12 @@ function checkWritingAnswer() {
             answerInput.value
         );
 
+
     const correctAnswer =
         normalizeText(
             answerElement.textContent
         );
+
 
     if (
         userAnswer ===
@@ -600,51 +768,44 @@ function checkWritingAnswer() {
         resultElement.textContent =
             "✓ Correct !";
 
+
         resultElement.className =
             "correct";
 
-        /*
-         * Réponse correcte :
-         * on affiche directement
-         * les 4 boutons.
-         */
 
         ratingArea.classList.remove(
             "hidden"
         );
 
+
         displayButtonDelays();
 
         return;
+
     }
 
-    /*
-     * Réponse incorrecte :
-     * on ne propose d'abord que
-     * Again et Good.
-     *
-     * Good permet de dire :
-     * "Je connaissais la réponse,
-     * c'était juste une faute de frappe."
-     */
 
     resultElement.textContent =
         `✗ Incorrect. Réponse : ${answerElement.textContent}`;
 
+
     resultElement.className =
         "incorrect";
 
+
     showWritingCorrectionButtons();
+
 }
 
 
 // ==============================
-// BOUTONS APRES ERREUR DE SAISIE
+// REPONSE INCORRECTE
 // ==============================
 
 function showWritingCorrectionButtons() {
 
     ratingArea.innerHTML = `
+
         <button id="writing-again">
             Again
         </button>
@@ -652,11 +813,14 @@ function showWritingCorrectionButtons() {
         <button id="writing-good">
             Good
         </button>
+
     `;
+
 
     ratingArea.classList.remove(
         "hidden"
     );
+
 
     document
         .getElementById(
@@ -664,13 +828,15 @@ function showWritingCorrectionButtons() {
         )
         .addEventListener(
             "click",
-            () => {
+            async () => {
 
-                rateCard(
+                await rateCard(
                     "again"
                 );
+
             }
         );
+
 
     document
         .getElementById(
@@ -681,111 +847,110 @@ function showWritingCorrectionButtons() {
             () => {
 
                 /*
-                 * Ici Good signifie :
-                 * "J'avais la bonne réponse,
-                 * mais j'ai simplement fait
-                 * une faute de frappe."
+                 * Ce Good ne valide pas encore
+                 * la carte dans le SRS.
                  *
-                 * On ne considère donc PAS
-                 * cette réponse comme une erreur.
+                 * Il signifie simplement :
+                 * "ma réponse était correcte,
+                 * j'ai fait une faute de frappe".
                  *
-                 * On affiche ensuite les 4
-                 * boutons normaux afin que
-                 * l'utilisateur puisse choisir
-                 * la difficulté.
+                 * On affiche donc ensuite
+                 * les 4 vrais boutons.
                  */
 
-                ratingArea.innerHTML = `
-                    <button data-rating="again">
-                        Again
-                        <span id="again-delay"
-                              class="rating-delay">
-                        </span>
-                    </button>
-
-                    <button data-rating="hard">
-                        Hard
-                        <span id="hard-delay"
-                              class="rating-delay">
-                        </span>
-                    </button>
-
-                    <button data-rating="good">
-                        Good
-                        <span id="good-delay"
-                              class="rating-delay">
-                        </span>
-                    </button>
-
-                    <button data-rating="easy">
-                        Easy
-                        <span id="easy-delay"
-                              class="rating-delay">
-                        </span>
-                    </button>
-                `;
+                restoreRatingButtons();
 
                 displayButtonDelays();
+
             }
         );
+
 }
 
 
 // ==============================
-// RESTAURATION DES 4 BOUTONS
+// 4 BOUTONS DE VALIDATION
 // ==============================
 
 function restoreRatingButtons() {
 
     ratingArea.innerHTML = `
+
         <button data-rating="again">
+
             Again
-            <span id="again-delay"
-                  class="rating-delay">
-            </span>
+
+            <span
+                id="again-delay"
+                class="rating-delay"
+            ></span>
+
         </button>
+
 
         <button data-rating="hard">
+
             Hard
-            <span id="hard-delay"
-                  class="rating-delay">
-            </span>
+
+            <span
+                id="hard-delay"
+                class="rating-delay"
+            ></span>
+
         </button>
+
 
         <button data-rating="good">
+
             Good
-            <span id="good-delay"
-                  class="rating-delay">
-            </span>
+
+            <span
+                id="good-delay"
+                class="rating-delay"
+            ></span>
+
         </button>
 
+
         <button data-rating="easy">
+
             Easy
-            <span id="easy-delay"
-                  class="rating-delay">
-            </span>
+
+            <span
+                id="easy-delay"
+                class="rating-delay"
+            ></span>
+
         </button>
+
     `;
+
 
     ratingArea
         .querySelectorAll(
             "[data-rating]"
         )
-        .forEach(button => {
+        .forEach(
+            button => {
 
-            button.addEventListener(
-                "click",
-                () => {
+                button.addEventListener(
+                    "click",
+                    async () => {
 
-                    const rating =
-                        button.dataset.rating;
+                        const rating =
+                            button.dataset.rating;
 
-                    rateCard(
-                        rating
-                    );
-                }
-            );
-        });
+
+                        await rateCard(
+                            rating
+                        );
+
+                    }
+                );
+
+            }
+        );
+
 }
 
 
@@ -797,12 +962,19 @@ function displayButtonDelays() {
 
     restoreRatingButtons();
 
+
     const ratings = [
+
         "again",
+
         "hard",
+
         "good",
+
         "easy"
+
     ];
+
 
     ratings.forEach(
         rating => {
@@ -812,16 +984,20 @@ function displayButtonDelays() {
                     `${rating}-delay`
                 );
 
+
             if (!element) {
                 return;
             }
+
 
             element.textContent =
                 getRatingDelay(
                     rating
                 );
+
         }
     );
+
 }
 
 
@@ -829,14 +1005,18 @@ function displayButtonDelays() {
 // CALCUL DES DELAIS
 // ==============================
 
-function getRatingDelay(rating) {
+function getRatingDelay(
+    rating
+) {
 
     if (!currentCard) {
         return "";
     }
 
+
     const card =
         currentCard;
+
 
     if (
         card.state ===
@@ -849,11 +1029,13 @@ function getRatingDelay(rating) {
             return "1 min";
         }
 
+
         if (
             rating === "hard"
         ) {
             return "6 min";
         }
+
 
         if (
             rating === "good"
@@ -861,12 +1043,15 @@ function getRatingDelay(rating) {
             return "1 j";
         }
 
+
         if (
             rating === "easy"
         ) {
             return "4 j";
         }
+
     }
+
 
     if (
         card.state ===
@@ -879,11 +1064,13 @@ function getRatingDelay(rating) {
             return "1 min";
         }
 
+
         if (
             rating === "hard"
         ) {
             return "6 min";
         }
+
 
         if (
             rating === "good"
@@ -891,12 +1078,15 @@ function getRatingDelay(rating) {
             return "1 j";
         }
 
+
         if (
             rating === "easy"
         ) {
             return "4 j";
         }
+
     }
+
 
     if (
         card.state ===
@@ -906,15 +1096,18 @@ function getRatingDelay(rating) {
         const interval =
             card.interval || 1;
 
+
         if (
             rating === "again"
         ) {
             return "10 min";
         }
 
+
         if (
             rating === "hard"
         ) {
+
             return `${Math.max(
                 1,
                 Math.round(
@@ -922,11 +1115,14 @@ function getRatingDelay(rating) {
                     defaultSettings.hardFactor
                 )
             )} j`;
+
         }
+
 
         if (
             rating === "good"
         ) {
+
             return `${Math.max(
                 1,
                 Math.round(
@@ -934,11 +1130,14 @@ function getRatingDelay(rating) {
                     defaultSettings.goodFactor
                 )
             )} j`;
+
         }
+
 
         if (
             rating === "easy"
         ) {
+
             return `${Math.max(
                 1,
                 Math.round(
@@ -946,10 +1145,14 @@ function getRatingDelay(rating) {
                     defaultSettings.easyFactor
                 )
             )} j`;
+
         }
+
     }
 
+
     return "";
+
 }
 
 
@@ -957,17 +1160,22 @@ function getRatingDelay(rating) {
 // PLANIFICATION SRS
 // ==============================
 
-function scheduleCard(rating) {
+function scheduleCard(
+    rating
+) {
 
     const card =
         currentCard;
+
 
     if (!card) {
         return;
     }
 
+
     const currentTime =
         now();
+
 
     if (
         rating === "again"
@@ -976,18 +1184,29 @@ function scheduleCard(rating) {
         card.state =
             "learning";
 
-        card.step = 0;
 
-        card.interval = 1;
+        card.step =
+            0;
+
+
+        card.interval =
+            1;
+
 
         card.nextReview =
             currentTime +
-            1 * 60 * 1000;
+            1 *
+            60 *
+            1000;
+
 
         card.reps++;
 
+
         return;
+
     }
+
 
     if (
         card.state ===
@@ -1001,18 +1220,29 @@ function scheduleCard(rating) {
             card.state =
                 "learning";
 
-            card.step = 0;
+
+            card.step =
+                0;
+
 
             card.nextReview =
                 currentTime +
-                6 * 60 * 1000;
+                6 *
+                60 *
+                1000;
 
-            card.interval = 1;
+
+            card.interval =
+                1;
+
 
             card.reps++;
 
+
             return;
+
         }
+
 
         if (
             rating === "good"
@@ -1021,9 +1251,11 @@ function scheduleCard(rating) {
             card.state =
                 "review";
 
+
             card.interval =
                 defaultSettings
                     .graduatingInterval;
+
 
             card.nextReview =
                 currentTime +
@@ -1033,10 +1265,14 @@ function scheduleCard(rating) {
                 60 *
                 1000;
 
+
             card.reps++;
 
+
             return;
+
         }
+
 
         if (
             rating === "easy"
@@ -1045,9 +1281,11 @@ function scheduleCard(rating) {
             card.state =
                 "review";
 
+
             card.interval =
                 defaultSettings
                     .easyInterval;
+
 
             card.nextReview =
                 currentTime +
@@ -1057,11 +1295,16 @@ function scheduleCard(rating) {
                 60 *
                 1000;
 
+
             card.reps++;
 
+
             return;
+
         }
+
     }
+
 
     if (
         card.state ===
@@ -1074,12 +1317,18 @@ function scheduleCard(rating) {
 
             card.nextReview =
                 currentTime +
-                6 * 60 * 1000;
+                6 *
+                60 *
+                1000;
+
 
             card.reps++;
 
+
             return;
+
         }
+
 
         if (
             rating === "good"
@@ -1088,9 +1337,11 @@ function scheduleCard(rating) {
             card.state =
                 "review";
 
+
             card.interval =
                 defaultSettings
                     .graduatingInterval;
+
 
             card.nextReview =
                 currentTime +
@@ -1100,10 +1351,14 @@ function scheduleCard(rating) {
                 60 *
                 1000;
 
+
             card.reps++;
 
+
             return;
+
         }
+
 
         if (
             rating === "easy"
@@ -1112,9 +1367,11 @@ function scheduleCard(rating) {
             card.state =
                 "review";
 
+
             card.interval =
                 defaultSettings
                     .easyInterval;
+
 
             card.nextReview =
                 currentTime +
@@ -1124,11 +1381,16 @@ function scheduleCard(rating) {
                 60 *
                 1000;
 
+
             card.reps++;
 
+
             return;
+
         }
+
     }
+
 
     if (
         card.state ===
@@ -1137,6 +1399,38 @@ function scheduleCard(rating) {
 
         const interval =
             card.interval || 1;
+
+
+        if (
+            rating === "again"
+        ) {
+
+            card.state =
+                "learning";
+
+
+            card.step =
+                0;
+
+
+            card.nextReview =
+                currentTime +
+                1 *
+                60 *
+                1000;
+
+
+            card.interval =
+                1;
+
+
+            card.reps++;
+
+
+            return;
+
+        }
+
 
         if (
             rating === "hard"
@@ -1151,7 +1445,9 @@ function scheduleCard(rating) {
                             .hardFactor
                     )
                 );
+
         }
+
 
         if (
             rating === "good"
@@ -1166,7 +1462,9 @@ function scheduleCard(rating) {
                             .goodFactor
                     )
                 );
+
         }
+
 
         if (
             rating === "easy"
@@ -1181,7 +1479,9 @@ function scheduleCard(rating) {
                             .easyFactor
                     )
                 );
+
         }
+
 
         card.nextReview =
             currentTime +
@@ -1191,8 +1491,11 @@ function scheduleCard(rating) {
             60 *
             1000;
 
+
         card.reps++;
+
     }
+
 }
 
 
@@ -1200,11 +1503,14 @@ function scheduleCard(rating) {
 // NOTATION D'UNE CARTE
 // ==============================
 
-function rateCard(rating) {
+async function rateCard(
+    rating
+) {
 
     if (!currentCard) {
         return;
     }
+
 
     const previousState =
         JSON.parse(
@@ -1213,49 +1519,77 @@ function rateCard(rating) {
             )
         );
 
+
     lastAction = {
-        card: currentCard,
-        previousState: previousState,
-        rating: rating
+
+        card:
+            currentCard,
+
+        previousState:
+            previousState,
+
+        rating:
+            rating
+
     };
+
+
+    /*
+     * Modification du SRS.
+     */
 
     scheduleCard(
         rating
     );
 
-    saveDecks(
+
+    /*
+     * IMPORTANT :
+     *
+     * On attend que la sauvegarde soit
+     * réellement terminée avant de
+     * passer à la carte suivante.
+     */
+
+    await saveDecks(
         decks
     );
 
+
     /*
-     * La carte quitte la position actuelle
-     * de la file.
+     * La carte quitte la file.
      */
 
     queue.shift();
 
+
     /*
-     * Again remet la carte dans la file
-     * afin qu'elle puisse être revue
-     * pendant la même session.
+     * Again :
+     * elle revient dans la session.
      */
 
     if (
         rating === "again"
     ) {
+
         queue.push(
             currentCard
         );
+
     }
+
 
     currentCard =
         null;
+
 
     undoButton.classList.remove(
         "hidden"
     );
 
+
     displayCard();
+
 }
 
 
@@ -1265,15 +1599,20 @@ function rateCard(rating) {
 
 undoButton.addEventListener(
     "click",
-    undoLastRating
+    async () => {
+
+        await undoLastRating();
+
+    }
 );
 
 
-function undoLastRating() {
+async function undoLastRating() {
 
     if (!lastAction) {
         return;
     }
+
 
     const {
         card,
@@ -1282,61 +1621,78 @@ function undoLastRating() {
     } =
         lastAction;
 
+
     Object.assign(
         card,
         previousState
     );
 
-    /*
-     * Si la carte avait été
-     * retirée de la file, on
-     * la remet.
-     */
 
     if (
         !queue.includes(card)
     ) {
+
         queue.unshift(
             card
         );
+
     }
+
 
     if (
         rating === "again"
     ) {
 
         const index =
-            queue.indexOf(card);
+            queue.indexOf(
+                card
+            );
+
 
         if (
             index !== -1
         ) {
+
             queue.splice(
                 index,
                 1
             );
+
         }
+
 
         queue.unshift(
             card
         );
+
     }
 
-    saveDecks(
+
+    /*
+     * Sauvegarde également
+     * l'annulation.
+     */
+
+    await saveDecks(
         decks
     );
 
+
     lastAction =
         null;
+
 
     undoButton.classList.add(
         "hidden"
     );
 
+
     currentCard =
         null;
 
+
     displayCard();
+
 }
 
 
@@ -1356,16 +1712,21 @@ function skipCard() {
         return;
     }
 
+
     queue.shift();
+
 
     queue.push(
         currentCard
     );
 
+
     currentCard =
         null;
 
+
     displayCard();
+
 }
 
 
@@ -1373,29 +1734,44 @@ function skipCard() {
 // FIN DE SESSION
 // ==============================
 
-function finishSession() {
+async function finishSession() {
+
+    /*
+     * Dernière sauvegarde de sécurité.
+     */
+
+    await saveDecks(
+        decks
+    );
+
 
     cardElement.classList.add(
         "hidden"
     );
 
+
     showArea.style.display =
         "none";
+
 
     ratingArea.classList.add(
         "hidden"
     );
 
+
     skipButton.classList.add(
         "hidden"
     );
+
 
     completionElement.classList.remove(
         "hidden"
     );
 
+
     completionText.textContent =
         "Tu as terminé toutes les cartes prévues pour cette session.";
+
 }
 
 
@@ -1408,28 +1784,39 @@ const ctx =
         "2d"
     );
 
+
 let isDrawing =
     false;
 
 
-function getCanvasPosition(event) {
+function getCanvasPosition(
+    event
+) {
 
     const rect =
         drawingCanvas.getBoundingClientRect();
 
+
     return {
+
         x:
             (event.clientX -
                 rect.left) *
-            (drawingCanvas.width /
-                rect.width),
+            (
+                drawingCanvas.width /
+                rect.width
+            ),
 
         y:
             (event.clientY -
                 rect.top) *
-            (drawingCanvas.height /
-                rect.height)
+            (
+                drawingCanvas.height /
+                rect.height
+            )
+
     };
+
 }
 
 
@@ -1440,17 +1827,21 @@ drawingCanvas.addEventListener(
         isDrawing =
             true;
 
+
         const position =
             getCanvasPosition(
                 event
             );
 
+
         ctx.beginPath();
+
 
         ctx.moveTo(
             position.x,
             position.y
         );
+
     }
 );
 
@@ -1463,17 +1854,21 @@ drawingCanvas.addEventListener(
             return;
         }
 
+
         const position =
             getCanvasPosition(
                 event
             );
+
 
         ctx.lineTo(
             position.x,
             position.y
         );
 
+
         ctx.stroke();
+
     }
 );
 
@@ -1484,6 +1879,7 @@ drawingCanvas.addEventListener(
 
         isDrawing =
             false;
+
     }
 );
 
@@ -1494,6 +1890,7 @@ drawingCanvas.addEventListener(
 
         isDrawing =
             false;
+
     }
 );
 
@@ -1506,6 +1903,7 @@ function clearCanvas() {
         drawingCanvas.width,
         drawingCanvas.height
     );
+
 }
 
 
@@ -1524,8 +1922,8 @@ document.addEventListener(
     event => {
 
         /*
-         * Entrée dans le champ d'écriture :
-         * afficher la réponse.
+         * Entrée dans le champ
+         * d'écriture.
          */
 
         if (
@@ -1536,18 +1934,24 @@ document.addEventListener(
 
             event.preventDefault();
 
+
             if (
                 !showAnswerButton.disabled
             ) {
+
                 showAnswer();
+
             }
 
+
             return;
+
         }
 
+
         /*
-         * Raccourcis uniquement lorsque
-         * les 4 boutons sont affichés.
+         * Raccourcis uniquement
+         * avec les 4 boutons.
          */
 
         if (
@@ -1555,60 +1959,79 @@ document.addEventListener(
                 "hidden"
             )
         ) {
+
             return;
+
         }
+
 
         if (
             event.key === "1"
         ) {
+
             const button =
                 ratingArea.querySelector(
                     '[data-rating="again"]'
                 );
 
+
             if (button) {
                 button.click();
             }
+
         }
+
 
         if (
             event.key === "2"
         ) {
+
             const button =
                 ratingArea.querySelector(
                     '[data-rating="hard"]'
                 );
 
+
             if (button) {
                 button.click();
             }
+
         }
+
 
         if (
             event.key === "3"
         ) {
+
             const button =
                 ratingArea.querySelector(
                     '[data-rating="good"]'
                 );
 
+
             if (button) {
                 button.click();
             }
+
         }
+
 
         if (
             event.key === "4"
         ) {
+
             const button =
                 ratingArea.querySelector(
                     '[data-rating="easy"]'
                 );
 
+
             if (button) {
                 button.click();
             }
+
         }
+
     }
 );
 
