@@ -33,24 +33,95 @@ const DEFAULT_DECKS = [
 ========================= */
 
 function loadDecks() {
-    const saved = localStorage.getItem("decks");
+
+    const saved =
+        localStorage.getItem("decks");
+
 
     if (!saved) {
-        localStorage.setItem("decks", JSON.stringify(DEFAULT_DECKS));
+
+        localStorage.setItem(
+            "decks",
+            JSON.stringify(DEFAULT_DECKS)
+        );
+
+
+        /*
+         * Si Firebase est disponible,
+         * on envoie également les decks par défaut
+         * dans Firestore.
+         */
+
+        if (window.saveDecksToCloud) {
+
+            window.saveDecksToCloud(
+                DEFAULT_DECKS
+            ).catch(error => {
+
+                console.error(
+                    "Impossible de sauvegarder les decks par défaut dans Firestore :",
+                    error
+                );
+
+            });
+
+        }
+
+
         return DEFAULT_DECKS;
+
     }
 
+
     try {
+
         return JSON.parse(saved);
+
     } catch (error) {
-        console.error("Impossible de charger les decks :", error);
+
+        console.error(
+            "Impossible de charger les decks :",
+            error
+        );
+
         return [];
+
     }
+
 }
 
 
 function saveDecks(decks) {
-    localStorage.setItem("decks", JSON.stringify(decks));
+
+    /*
+     * Sauvegarde locale.
+     */
+
+    localStorage.setItem(
+        "decks",
+        JSON.stringify(decks)
+    );
+
+
+    /*
+     * Sauvegarde Firestore.
+     */
+
+    if (window.saveDecksToCloud) {
+
+        window.saveDecksToCloud(
+            decks
+        ).catch(error => {
+
+            console.error(
+                "Impossible de sauvegarder les decks dans Firestore :",
+                error
+            );
+
+        });
+
+    }
+
 }
 
 
@@ -59,12 +130,19 @@ function saveDecks(decks) {
 ========================= */
 
 function isCardDue(card) {
-    return !card.nextReview || card.nextReview <= Date.now();
+
+    return !card.nextReview ||
+        card.nextReview <= Date.now();
+
 }
 
 
 function getDueCards(deck) {
-    return deck.cards.filter(card => isCardDue(card));
+
+    return deck.cards.filter(
+        card => isCardDue(card)
+    );
+
 }
 
 
@@ -72,21 +150,35 @@ function getDueCards(deck) {
    AFFICHAGE DES DECKS
 ========================= */
 
-function renderDeckElement(deck, index, displayName) {
+function renderDeckElement(
+    deck,
+    index,
+    displayName
+) {
 
-    const dueCards = getDueCards(deck);
-    const dueCount = dueCards.length;
+    const dueCards =
+        getDueCards(deck);
 
-    const deckElement = document.createElement("div");
+    const dueCount =
+        dueCards.length;
 
-    deckElement.className = "deck";
 
-    const dueText = dueCount === 0
-        ? `<div class="due-count nothing-due">✓ Rien à réviser</div>`
-        : `<div class="due-count">${dueCount} carte${dueCount > 1 ? "s" : ""} à réviser</div>`;
+    const deckElement =
+        document.createElement("div");
+
+
+    deckElement.className =
+        "deck";
+
+
+    const dueText =
+        dueCount === 0
+            ? `<div class="due-count nothing-due">✓ Rien à réviser</div>`
+            : `<div class="due-count">${dueCount} carte${dueCount > 1 ? "s" : ""} à réviser</div>`;
 
 
     deckElement.innerHTML = `
+
         <div class="deck-header">
 
             <div>
@@ -114,12 +206,14 @@ function renderDeckElement(deck, index, displayName) {
                     Étudier
                 </button>
 
+
                 <button
                     class="manage-button"
                     data-index="${index}"
                 >
                     Gérer
                 </button>
+
 
                 <button
                     class="delete-button"
@@ -131,7 +225,9 @@ function renderDeckElement(deck, index, displayName) {
             </div>
 
         </div>
+
     `;
+
 
     return deckElement;
 
@@ -140,30 +236,44 @@ function renderDeckElement(deck, index, displayName) {
 
 function groupDecksByPrefix(decks) {
 
-    const groups = new Map();
+    const groups =
+        new Map();
 
-    decks.forEach((deck, index) => {
 
-        const parts = deck.name.split("::");
+    decks.forEach(
+        (deck, index) => {
 
-        const topName = parts[0];
+            const parts =
+                deck.name.split("::");
 
-        if (!groups.has(topName)) {
 
-            groups.set(topName, []);
+            const topName =
+                parts[0];
+
+
+            if (!groups.has(topName)) {
+
+                groups.set(
+                    topName,
+                    []
+                );
+
+            }
+
+
+            groups.get(topName).push({
+
+                deck,
+                index,
+                isSub: parts.length > 1,
+                subLabel:
+                    parts.slice(1).join("::")
+
+            });
 
         }
+    );
 
-        groups.get(topName).push({
-
-            deck,
-            index,
-            isSub: parts.length > 1,
-            subLabel: parts.slice(1).join("::")
-
-        });
-
-    });
 
     return groups;
 
@@ -172,154 +282,281 @@ function groupDecksByPrefix(decks) {
 
 function displayDecks() {
 
-    const container = document.getElementById("decks-container");
+    const container =
+        document.getElementById(
+            "decks-container"
+        );
+
 
     container.innerHTML = "";
 
-    const decks = loadDecks();
+
+    const decks =
+        loadDecks();
+
 
     if (decks.length === 0) {
 
         container.innerHTML = `
+
             <p class="empty">
                 Aucun deck pour le moment.
             </p>
+
         `;
 
         return;
+
     }
 
 
-    const groups = groupDecksByPrefix(decks);
-
-    groups.forEach((entries, groupName) => {
-
-        if (entries.length === 1 && !entries[0].isSub) {
-
-            /*
-             * Deck isolé, sans sous-deck :
-             * on l'affiche comme avant, sans groupe.
-             */
-
-            const { deck, index } = entries[0];
-
-            container.appendChild(
-                renderDeckElement(deck, index, deck.name)
-            );
-
-            return;
-
-        }
+    const groups =
+        groupDecksByPrefix(decks);
 
 
-        /*
-         * Un ou plusieurs sous-decks partagent
-         * ce préfixe : on les regroupe visuellement.
-         */
+    groups.forEach(
+        (entries, groupName) => {
 
-        const groupTotalDue = entries.reduce(
-            (total, entry) => total + getDueCards(entry.deck).length,
-            0
-        );
+            if (
+                entries.length === 1 &&
+                !entries[0].isSub
+            ) {
 
-        const groupElement = document.createElement("div");
+                /*
+                 * Deck isolé, sans sous-deck :
+                 * on l'affiche comme avant.
+                 */
 
-        groupElement.className = "deck-group";
-
-        groupElement.innerHTML = `
-            <div class="deck-group-header">
-                <div class="deck-group-name">${escapeHTML(groupName)}</div>
-                <div class="deck-group-due">
-                    ${groupTotalDue === 0
-                        ? "✓ Rien à réviser"
-                        : `${groupTotalDue} carte${groupTotalDue > 1 ? "s" : ""} à réviser au total`}
-                </div>
-            </div>
-        `;
-
-        entries.forEach(entry => {
-
-            const displayName = entry.isSub
-                ? entry.subLabel
-                : entry.deck.name;
-
-            groupElement.appendChild(
-                renderDeckElement(entry.deck, entry.index, displayName)
-            );
-
-        });
-
-        container.appendChild(groupElement);
-
-    });
+                const {
+                    deck,
+                    index
+                } = entries[0];
 
 
-    /* Boutons Étudier */
+                container.appendChild(
 
-    document.querySelectorAll(".study-button").forEach(button => {
+                    renderDeckElement(
+                        deck,
+                        index,
+                        deck.name
+                    )
 
-        button.addEventListener("click", () => {
-
-            const index = Number(button.dataset.index);
-
-            const decks = loadDecks();
-
-            localStorage.setItem("selectedDeck", decks[index].name);
-
-            window.location.href = "study.html";
-        });
-
-    });
+                );
 
 
-    /* Boutons Gérer */
-
-    document.querySelectorAll(".manage-button").forEach(button => {
-
-        button.addEventListener("click", () => {
-
-            const index = Number(button.dataset.index);
-
-            const decks = loadDecks();
-
-            localStorage.setItem("manageDeckName", decks[index].name);
-
-            window.location.href = "deck.html";
-        });
-
-    });
-
-
-    /* Boutons Supprimer */
-
-    document.querySelectorAll(".delete-button").forEach(button => {
-
-        button.addEventListener("click", () => {
-
-            const index = Number(button.dataset.index);
-
-            const decks = loadDecks();
-
-            const deckName = decks[index].name;
-
-            const confirmation = confirm(
-                `Supprimer le deck "${deckName}" ?`
-            );
-
-            if (!confirmation) {
                 return;
+
             }
 
-            decks.splice(index, 1);
 
-            saveDecks(decks);
+            /*
+             * Un ou plusieurs sous-decks
+             * partagent ce préfixe.
+             */
 
-            displayDecks();
+            const groupTotalDue =
+                entries.reduce(
+                    (total, entry) =>
+                        total +
+                        getDueCards(entry.deck).length,
+                    0
+                );
 
-            displayForecast();
+
+            const groupElement =
+                document.createElement("div");
+
+
+            groupElement.className =
+                "deck-group";
+
+
+            groupElement.innerHTML = `
+
+                <div class="deck-group-header">
+
+                    <div class="deck-group-name">
+                        ${escapeHTML(groupName)}
+                    </div>
+
+                    <div class="deck-group-due">
+
+                        ${
+                            groupTotalDue === 0
+                                ? "✓ Rien à réviser"
+                                : `${groupTotalDue} carte${groupTotalDue > 1 ? "s" : ""} à réviser au total`
+                        }
+
+                    </div>
+
+                </div>
+
+            `;
+
+
+            entries.forEach(
+                entry => {
+
+                    const displayName =
+                        entry.isSub
+                            ? entry.subLabel
+                            : entry.deck.name;
+
+
+                    groupElement.appendChild(
+
+                        renderDeckElement(
+                            entry.deck,
+                            entry.index,
+                            displayName
+                        )
+
+                    );
+
+                }
+            );
+
+
+            container.appendChild(
+                groupElement
+            );
+
+        }
+    );
+
+
+    /* =========================
+       BOUTONS ÉTUDIER
+    ========================= */
+
+    document
+        .querySelectorAll(".study-button")
+        .forEach(button => {
+
+            button.addEventListener(
+                "click",
+                () => {
+
+                    const index =
+                        Number(
+                            button.dataset.index
+                        );
+
+
+                    const decks =
+                        loadDecks();
+
+
+                    localStorage.setItem(
+                        "selectedDeck",
+                        decks[index].name
+                    );
+
+
+                    window.location.href =
+                        "study.html";
+
+                }
+            );
+
         });
 
-    });
+
+    /* =========================
+       BOUTONS GÉRER
+    ========================= */
+
+    document
+        .querySelectorAll(".manage-button")
+        .forEach(button => {
+
+            button.addEventListener(
+                "click",
+                () => {
+
+                    const index =
+                        Number(
+                            button.dataset.index
+                        );
+
+
+                    const decks =
+                        loadDecks();
+
+
+                    localStorage.setItem(
+                        "manageDeckName",
+                        decks[index].name
+                    );
+
+
+                    window.location.href =
+                        "deck.html";
+
+                }
+            );
+
+        });
+
+
+    /* =========================
+       BOUTONS SUPPRIMER
+    ========================= */
+
+    document
+        .querySelectorAll(".delete-button")
+        .forEach(button => {
+
+            button.addEventListener(
+                "click",
+                () => {
+
+                    const index =
+                        Number(
+                            button.dataset.index
+                        );
+
+
+                    const decks =
+                        loadDecks();
+
+
+                    const deckName =
+                        decks[index].name;
+
+
+                    const confirmation =
+                        confirm(
+                            `Supprimer le deck "${deckName}" ?`
+                        );
+
+
+                    if (!confirmation) {
+
+                        return;
+
+                    }
+
+
+                    decks.splice(
+                        index,
+                        1
+                    );
+
+
+                    saveDecks(
+                        decks
+                    );
+
+
+                    displayDecks();
+
+                    displayForecast();
+
+                }
+            );
+
+        });
 
 }
 
@@ -330,44 +567,71 @@ function displayDecks() {
 
 function createDeck() {
 
-    const input = document.getElementById("new-deck-name");
+    const input =
+        document.getElementById(
+            "new-deck-name"
+        );
 
-    const name = input.value.trim();
+
+    const name =
+        input.value.trim();
+
 
     if (!name) {
-        alert("Entre un nom de deck.");
+
+        alert(
+            "Entre un nom de deck."
+        );
+
         return;
+
     }
 
 
-    const decks = loadDecks();
+    const decks =
+        loadDecks();
 
-    const alreadyExists = decks.some(
-        deck => deck.name.toLowerCase() === name.toLowerCase()
-    );
+
+    const alreadyExists =
+        decks.some(
+            deck =>
+                deck.name.toLowerCase() ===
+                name.toLowerCase()
+        );
 
 
     if (alreadyExists) {
 
-        alert("Ce deck existe déjà.");
+        alert(
+            "Ce deck existe déjà."
+        );
 
         return;
+
     }
 
 
     decks.push({
+
         name: name,
+
         cards: []
+
     });
 
 
-    saveDecks(decks);
+    saveDecks(
+        decks
+    );
+
 
     input.value = "";
+
 
     displayDecks();
 
     displayForecast();
+
 }
 
 
@@ -377,178 +641,271 @@ function createDeck() {
 
 function getForecast() {
 
-    const decks = loadDecks();
+    const decks =
+        loadDecks();
 
-    const now = Date.now();
 
-    const hour = 60 * 60 * 1000;
+    const now =
+        Date.now();
+
+
+    const hour =
+        60 * 60 * 1000;
+
 
     const forecast = [];
 
 
     /*
-        On regarde les 24 prochaines heures.
+     * On regarde les 24 prochaines heures.
+     */
 
-        Chaque case correspond à une heure.
-    */
+    for (
+        let i = 0;
+        i < 24;
+        i++
+    ) {
 
-    for (let i = 0; i < 24; i++) {
+        const start =
+            now + i * hour;
 
-        const start = now + i * hour;
 
-        const end = start + hour;
+        const end =
+            start + hour;
+
 
         let count = 0;
 
 
-        decks.forEach(deck => {
+        decks.forEach(
+            deck => {
 
-            deck.cards.forEach(card => {
+                deck.cards.forEach(
+                    card => {
 
-                if (!card.nextReview) {
-                    return;
-                }
+                        if (!card.nextReview) {
+
+                            return;
+
+                        }
 
 
-                /*
-                    Une carte qui est déjà due maintenant
-                    n'est pas comptée dans le futur.
-                */
+                        /*
+                         * Une carte déjà due maintenant
+                         * n'est pas comptée dans le futur.
+                         */
 
-                if (card.nextReview > start &&
-                    card.nextReview <= end) {
+                        if (
+                            card.nextReview > start &&
+                            card.nextReview <= end
+                        ) {
 
-                    count++;
-                }
+                            count++;
 
-            });
+                        }
 
-        });
+                    }
+                );
+
+            }
+        );
 
 
         forecast.push({
+
             start,
             end,
             count
+
         });
 
     }
 
 
     return forecast;
+
 }
 
 
 function displayForecast() {
 
-    const chart = document.getElementById("forecast-chart");
+    const chart =
+        document.getElementById(
+            "forecast-chart"
+        );
+
 
     if (!chart) {
+
         return;
+
     }
 
 
-    const forecast = getForecast();
+    const forecast =
+        getForecast();
 
 
     /*
-        On regarde aussi s'il y a réellement
-        quelque chose à afficher.
-    */
+     * On regarde aussi s'il y a réellement
+     * quelque chose à afficher.
+     */
 
-    const hasFutureCards = forecast.some(
-        item => item.count > 0
-    );
+    const hasFutureCards =
+        forecast.some(
+            item =>
+                item.count > 0
+        );
 
 
     if (!hasFutureCards) {
 
         chart.innerHTML = `
+
             <div class="forecast-empty">
-                Aucune carte prévue dans les prochaines 24 heures.
+
+                Aucune carte prévue dans les
+                prochaines 24 heures.
+
             </div>
+
         `;
 
         return;
+
     }
 
 
-    const max = Math.max(
-        ...forecast.map(item => item.count),
-        1
-    );
+    const max =
+        Math.max(
+            ...forecast.map(
+                item => item.count
+            ),
+            1
+        );
 
 
     chart.innerHTML = "";
 
 
-    forecast.forEach(item => {
+    forecast.forEach(
+        item => {
 
-        const date = new Date(item.start);
-
-        const hourText = date.toLocaleTimeString(
-            "fr-BE",
-            {
-                hour: "2-digit",
-                minute: "2-digit"
-            }
-        );
-
-
-        const column = document.createElement("div");
-
-        column.className = "forecast-column";
-
-
-        const number = document.createElement("div");
-
-        number.className = "forecast-number";
-
-        number.textContent =
-            item.count > 0 ? item.count : "";
-
-
-        const barContainer = document.createElement("div");
-
-        barContainer.className =
-            "forecast-bar-container";
-
-
-        const bar = document.createElement("div");
-
-        bar.className = "forecast-bar";
-
-
-        const height =
-            item.count === 0
-                ? 2
-                : Math.max(
-                    5,
-                    (item.count / max) * 100
+            const date =
+                new Date(
+                    item.start
                 );
 
 
-        bar.style.height = `${height}%`;
+            const hourText =
+                date.toLocaleTimeString(
+                    "fr-BE",
+                    {
+                        hour: "2-digit",
+                        minute: "2-digit"
+                    }
+                );
 
 
-        const hour = document.createElement("div");
+            const column =
+                document.createElement(
+                    "div"
+                );
 
-        hour.className = "forecast-hour";
 
-        hour.textContent = hourText;
+            column.className =
+                "forecast-column";
 
 
-        barContainer.appendChild(bar);
+            const number =
+                document.createElement(
+                    "div"
+                );
 
-        column.appendChild(number);
 
-        column.appendChild(barContainer);
+            number.className =
+                "forecast-number";
 
-        column.appendChild(hour);
 
-        chart.appendChild(column);
+            number.textContent =
+                item.count > 0
+                    ? item.count
+                    : "";
 
-    });
+
+            const barContainer =
+                document.createElement(
+                    "div"
+                );
+
+
+            barContainer.className =
+                "forecast-bar-container";
+
+
+            const bar =
+                document.createElement(
+                    "div"
+                );
+
+
+            bar.className =
+                "forecast-bar";
+
+
+            const height =
+                item.count === 0
+                    ? 2
+                    : Math.max(
+                        5,
+                        (item.count / max) * 100
+                    );
+
+
+            bar.style.height =
+                `${height}%`;
+
+
+            const hour =
+                document.createElement(
+                    "div"
+                );
+
+
+            hour.className =
+                "forecast-hour";
+
+
+            hour.textContent =
+                hourText;
+
+
+            barContainer.appendChild(
+                bar
+            );
+
+
+            column.appendChild(
+                number
+            );
+
+
+            column.appendChild(
+                barContainer
+            );
+
+
+            column.appendChild(
+                hour
+            );
+
+
+            chart.appendChild(
+                column
+            );
+
+        }
+    );
 
 }
 
@@ -560,97 +917,182 @@ function displayForecast() {
 function escapeHTML(text) {
 
     return text
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+        .replaceAll(
+            "&",
+            "&amp;"
+        )
+        .replaceAll(
+            "<",
+            "&lt;"
+        )
+        .replaceAll(
+            ">",
+            "&gt;"
+        )
+        .replaceAll(
+            '"',
+            "&quot;"
+        )
+        .replaceAll(
+            "'",
+            "&#039;"
+        );
+
 }
 
 
 /* =========================
-   SYNCHRONISATION (SAUVEGARDE MANUELLE)
+   SAUVEGARDE MANUELLE
 ========================= */
 
 function exportDecks() {
 
-    const decks = loadDecks();
+    const decks =
+        loadDecks();
 
-    const blob = new Blob(
-        [JSON.stringify(decks, null, 2)],
-        { type: "application/json" }
+
+    const blob =
+        new Blob(
+            [
+                JSON.stringify(
+                    decks,
+                    null,
+                    2
+                )
+            ],
+            {
+                type:
+                    "application/json"
+            }
+        );
+
+
+    const url =
+        URL.createObjectURL(
+            blob
+        );
+
+
+    const link =
+        document.createElement(
+            "a"
+        );
+
+
+    link.href =
+        url;
+
+
+    const date =
+        new Date()
+            .toISOString()
+            .slice(0, 10);
+
+
+    link.download =
+        `mon-anki-sauvegarde-${date}.json`;
+
+
+    document.body.appendChild(
+        link
     );
 
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-
-    link.href = url;
-
-    const date = new Date()
-        .toISOString()
-        .slice(0, 10);
-
-    link.download = `mon-anki-sauvegarde-${date}.json`;
-
-    document.body.appendChild(link);
 
     link.click();
 
+
     link.remove();
 
-    URL.revokeObjectURL(url);
+
+    URL.revokeObjectURL(
+        url
+    );
 
 }
 
 
-function mergeImportedDecks(importedDecks, existingDecks) {
+function mergeImportedDecks(
+    importedDecks,
+    existingDecks
+) {
 
     let addedDecks = 0;
 
     let addedCards = 0;
 
-    importedDecks.forEach(importedDeck => {
 
-        const existingDeck = existingDecks.find(
-            deck => deck.name === importedDeck.name
-        );
+    importedDecks.forEach(
+        importedDeck => {
 
-        if (!existingDeck) {
-
-            existingDecks.push(importedDeck);
-
-            addedDecks++;
-
-            addedCards += importedDeck.cards.length;
-
-            return;
-
-        }
+            const existingDeck =
+                existingDecks.find(
+                    deck =>
+                        deck.name ===
+                        importedDeck.name
+                );
 
 
-        importedDeck.cards.forEach(importedCard => {
+            if (!existingDeck) {
 
-            const alreadyExists = existingDeck.cards.some(
-                card =>
-                    card.word === importedCard.word &&
-                    card.answer === importedCard.answer &&
-                    card.mode === importedCard.mode
-            );
+                existingDecks.push(
+                    importedDeck
+                );
 
-            if (!alreadyExists) {
 
-                existingDeck.cards.push(importedCard);
+                addedDecks++;
 
-                addedCards++;
+
+                addedCards +=
+                    importedDeck.cards.length;
+
+
+                return;
 
             }
 
-        });
 
-    });
+            importedDeck.cards.forEach(
+                importedCard => {
 
-    return { addedDecks, addedCards };
+                    const alreadyExists =
+                        existingDeck.cards.some(
+                            card =>
+                                card.word ===
+                                    importedCard.word &&
+
+                                card.answer ===
+                                    importedCard.answer &&
+
+                                card.mode ===
+                                    importedCard.mode
+                        );
+
+
+                    if (!alreadyExists) {
+
+                        existingDeck.cards.push(
+                            importedCard
+                        );
+
+
+                        addedCards++;
+
+                    }
+
+                }
+            );
+
+        }
+    );
+
+
+    return {
+
+        addedDecks,
+
+        addedCards
+
+    };
 
 }
 
@@ -658,22 +1100,33 @@ function mergeImportedDecks(importedDecks, existingDecks) {
 function importDecksFromFile(file) {
 
     const statusElement =
-        document.getElementById("sync-status");
+        document.getElementById(
+            "sync-status"
+        );
 
-    const reader = new FileReader();
+
+    const reader =
+        new FileReader();
 
 
     reader.onload = () => {
 
         let importedDecks;
 
+
         try {
 
-            importedDecks = JSON.parse(reader.result);
+            importedDecks =
+                JSON.parse(
+                    reader.result
+                );
 
         } catch (error) {
 
-            console.error(error);
+            console.error(
+                error
+            );
+
 
             if (statusElement) {
 
@@ -682,12 +1135,15 @@ function importDecksFromFile(file) {
 
             }
 
+
             return;
 
         }
 
 
-        if (!Array.isArray(importedDecks)) {
+        if (!Array.isArray(
+            importedDecks
+        )) {
 
             if (statusElement) {
 
@@ -696,19 +1152,27 @@ function importDecksFromFile(file) {
 
             }
 
+
             return;
 
         }
 
 
-        const existingDecks = loadDecks();
+        const existingDecks =
+            loadDecks();
 
-        const result = mergeImportedDecks(
-            importedDecks,
+
+        const result =
+            mergeImportedDecks(
+                importedDecks,
+                existingDecks
+            );
+
+
+        saveDecks(
             existingDecks
         );
 
-        saveDecks(existingDecks);
 
         displayDecks();
 
@@ -725,7 +1189,9 @@ function importDecksFromFile(file) {
     };
 
 
-    reader.readAsText(file);
+    reader.readAsText(
+        file
+    );
 
 }
 
@@ -734,84 +1200,113 @@ function importDecksFromFile(file) {
    INITIALISATION
 ========================= */
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
 
-    displayDecks();
+        displayDecks();
 
-    displayForecast();
-
-
-    const createButton =
-        document.getElementById("create-deck");
+        displayForecast();
 
 
-    createButton.addEventListener(
-        "click",
-        createDeck
-    );
+        const createButton =
+            document.getElementById(
+                "create-deck"
+            );
 
 
-    const input =
-        document.getElementById("new-deck-name");
-
-
-    input.addEventListener(
-        "keydown",
-        event => {
-
-            if (event.key === "Enter") {
-                createDeck();
-            }
-
-        }
-    );
-
-
-    const exportButton =
-        document.getElementById("export-button");
-
-    if (exportButton) {
-
-        exportButton.addEventListener(
+        createButton.addEventListener(
             "click",
-            exportDecks
-        );
-
-    }
-
-
-    const importTriggerButton =
-        document.getElementById("import-trigger-button");
-
-    const importFileInput =
-        document.getElementById("import-file-input");
-
-    if (importTriggerButton && importFileInput) {
-
-        importTriggerButton.addEventListener(
-            "click",
-            () => importFileInput.click()
+            createDeck
         );
 
 
-        importFileInput.addEventListener(
-            "change",
-            () => {
+        const input =
+            document.getElementById(
+                "new-deck-name"
+            );
 
-                const file = importFileInput.files[0];
 
-                if (file) {
+        input.addEventListener(
+            "keydown",
+            event => {
 
-                    importDecksFromFile(file);
+                if (
+                    event.key === "Enter"
+                ) {
+
+                    createDeck();
 
                 }
 
-
-                importFileInput.value = "";
-
             }
         );
 
-    }
 
-});
+        const exportButton =
+            document.getElementById(
+                "export-button"
+            );
+
+
+        if (exportButton) {
+
+            exportButton.addEventListener(
+                "click",
+                exportDecks
+            );
+
+        }
+
+
+        const importTriggerButton =
+            document.getElementById(
+                "import-trigger-button"
+            );
+
+
+        const importFileInput =
+            document.getElementById(
+                "import-file-input"
+            );
+
+
+        if (
+            importTriggerButton &&
+            importFileInput
+        ) {
+
+            importTriggerButton.addEventListener(
+                "click",
+                () =>
+                    importFileInput.click()
+            );
+
+
+            importFileInput.addEventListener(
+                "change",
+                () => {
+
+                    const file =
+                        importFileInput.files[0];
+
+
+                    if (file) {
+
+                        importDecksFromFile(
+                            file
+                        );
+
+                    }
+
+
+                    importFileInput.value =
+                        "";
+
+                }
+            );
+
+        }
+
+    }
+);
