@@ -1,152 +1,164 @@
 // ==============================
-// CHARGEMENT DES DECKS
+// FLASHCARDS — MON ANKI
 // ==============================
 
-function loadDecks() {
+const decks =
+    JSON.parse(
+        localStorage.getItem("decks")
+    ) || [];
 
-    const saved =
-        localStorage.getItem("decks");
+const selectedDeckName =
+    localStorage.getItem("selectedDeck");
+
+const selectedDirection =
+    localStorage.getItem("selectedDirection") ||
+    "random";
+
+const selectedMode =
+    localStorage.getItem("selectedMode") ||
+    "flashcard";
+
+const newCardLimit =
+    Number(
+        localStorage.getItem("newCardLimit")
+    ) || 10;
+
+const reviewLimit =
+    Number(
+        localStorage.getItem("reviewLimit")
+    ) || 20;
 
 
-    if (!saved) {
+// ==============================
+// ELEMENTS HTML
+// ==============================
 
-        return [];
+const cardElement =
+    document.getElementById("card");
 
-    }
+const questionElement =
+    document.getElementById("question");
+
+const answerElement =
+    document.getElementById("answer");
+
+const resultElement =
+    document.getElementById("result");
+
+const metaElement =
+    document.getElementById("meta");
+
+const progressElement =
+    document.getElementById("progress");
+
+const showAnswerButton =
+    document.getElementById("show-answer");
+
+const showArea =
+    document.getElementById("show-area");
+
+const ratingArea =
+    document.getElementById("rating-area");
+
+const skipButton =
+    document.getElementById("skip-button");
+
+const undoButton =
+    document.getElementById("undo-button");
+
+const completionElement =
+    document.getElementById("completion");
+
+const completionText =
+    document.getElementById("completion-text");
+
+const writingArea =
+    document.getElementById("writing-area");
+
+const answerInput =
+    document.getElementById("answer-input");
+
+const drawingArea =
+    document.getElementById("drawing-area");
+
+const drawingCanvas =
+    document.getElementById("drawing-canvas");
+
+const clearDrawingButton =
+    document.getElementById("clear-drawing");
+
+const referenceDrawing =
+    document.getElementById("reference-drawing");
 
 
-    try {
+// ==============================
+// DECK
+// ==============================
 
-        return JSON.parse(saved);
+const deck =
+    decks.find(
+        d => d.name === selectedDeckName
+    );
 
-    } catch (error) {
-
-        console.error(error);
-
-        return [];
-
-    }
-
+if (!deck) {
+    alert("Deck introuvable.");
+    window.location.href = "index.html";
+    throw new Error("Deck introuvable.");
 }
+
+const cards =
+    Array.isArray(deck.cards)
+        ? deck.cards
+        : [];
 
 
 // ==============================
 // SAUVEGARDE
 // ==============================
 
-function saveDecks(decks) {
+function saveDecks(decksToSave) {
 
     localStorage.setItem(
         "decks",
-        JSON.stringify(decks)
+        JSON.stringify(decksToSave)
     );
 
+    /*
+     * Firebase est éventuellement disponible
+     * grâce au système de synchronisation
+     * déjà installé dans Mon Anki.
+     *
+     * On sauvegarde localement immédiatement.
+     * La synchronisation cloud sera ajoutée
+     * indépendamment sans bloquer la session.
+     */
+
+    if (
+        typeof window.saveDecksToCloud ===
+        "function"
+    ) {
+        window.saveDecksToCloud(
+            decksToSave
+        ).catch(error => {
+            console.error(
+                "Erreur de synchronisation Firestore :",
+                error
+            );
+        });
+    }
 }
 
 
 // ==============================
-// ÉLÉMENTS
-// ==============================
-
-const questionElement =
-    document.querySelector("#question");
-
-
-const answerElement =
-    document.querySelector("#answer");
-
-
-const writingArea =
-    document.querySelector("#writing-area");
-
-
-const answerInput =
-    document.querySelector("#answer-input");
-
-
-const resultElement =
-    document.querySelector("#result");
-
-
-const metaElement =
-    document.querySelector("#meta");
-
-
-const showArea =
-    document.querySelector("#show-area");
-
-
-const showAnswerButton =
-    document.querySelector("#show-answer");
-
-
-const ratingArea =
-    document.querySelector("#rating-area");
-
-
-const skipButton =
-    document.querySelector("#skip-button");
-
-
-const undoButton =
-    document.querySelector("#undo-button");
-
-
-const completionElement =
-    document.querySelector("#completion");
-
-
-// ==============================
-// DESSIN
-// ==============================
-
-const drawingArea =
-    document.querySelector("#drawing-area");
-
-
-const referenceDrawingElement =
-    document.querySelector("#reference-drawing");
-
-
-const drawingCanvas =
-    document.querySelector("#drawing-canvas");
-
-
-const clearDrawingButton =
-    document.querySelector("#clear-drawing");
-
-
-let drawingContext =
-    null;
-
-
-let isDrawing =
-    false;
-
-
-let lastDrawingX =
-    0;
-
-
-let lastDrawingY =
-    0;
-
-
-if (drawingCanvas) {
-
-    drawingContext =
-        drawingCanvas.getContext("2d");
-
-}
-
-
-// ==============================
-// PARAMÈTRES SRS
+// PARAMETRES SRS
 // ==============================
 
 const defaultSettings = {
 
-    learningSteps: [1, 10],
+    learningSteps: [
+        1,
+        10
+    ],
 
     graduatingInterval: 1,
 
@@ -157,720 +169,211 @@ const defaultSettings = {
     goodFactor: 2.5,
 
     easyFactor: 1.3
-
 };
 
 
 // ==============================
-// DECK
+// NORMALISATION DES CARTES
 // ==============================
 
-const decks =
-    loadDecks();
+cards.forEach(card => {
 
-
-const selectedDeckName =
-    localStorage.getItem(
-        "selectedDeck"
-    );
-
-
-const selectedDeck =
-    decks.find(
-        deck =>
-            deck.name === selectedDeckName
-    );
-
-
-if (!selectedDeck) {
-
-    alert(
-        "Deck introuvable."
-    );
-
-    window.location.href =
-        "index.html";
-
-}
-
-
-// ==============================
-// PARAMÈTRES DE SESSION
-// ==============================
-
-let direction =
-    localStorage.getItem(
-        "selectedDirection"
-    ) || "random";
-
-
-let mode =
-    localStorage.getItem(
-        "selectedMode"
-    ) || "flashcard";
-
-
-const newCardLimit =
-    Number(
-        localStorage.getItem(
-            "newCardLimit"
-        )
-    ) || 20;
-
-
-const reviewLimit =
-    Number(
-        localStorage.getItem(
-            "reviewLimit"
-        )
-    ) || 50;
-
-
-// ==============================
-// NORMALISER LES ANCIENS MODES
-// ==============================
-
-if (mode === "flashcards") {
-
-    mode =
-        "flashcard";
-
-}
-
-
-// ==============================
-// INITIALISATION DES CARTES
-// ==============================
-
-selectedDeck.cards.forEach(
-    card => {
-
-        if (
-            card.level === undefined
-        ) {
-
-            card.level = 0;
-
-        }
-
-
-        if (
-            card.interval === undefined
-        ) {
-
-            card.interval = 1;
-
-        }
-
-
-        if (
-            card.nextReview === undefined
-        ) {
-
-            card.nextReview = 0;
-
-        }
-
-
-        if (
-            card.reps === undefined
-        ) {
-
-            card.reps = 0;
-
-        }
-
-
-        if (
-            card.state === undefined
-        ) {
-
-            card.state =
-                "new";
-
-        }
-
-
-        if (
-            card.step === undefined
-        ) {
-
-            card.step = 0;
-
-        }
-
-
-        /*
-         * Les anciennes cartes n'ont pas
-         * de mode : elles restent des cartes texte.
-         */
-
-        if (
-            card.mode === undefined
-        ) {
-
-            card.mode =
-                "text";
-
-        }
-
+    if (
+        typeof card.level !==
+        "number"
+    ) {
+        card.level = 0;
     }
-);
+
+    if (
+        typeof card.interval !==
+        "number"
+    ) {
+        card.interval = 1;
+    }
+
+    if (
+        typeof card.nextReview !==
+        "number"
+    ) {
+        card.nextReview = 0;
+    }
+
+    if (
+        typeof card.reps !==
+        "number"
+    ) {
+        card.reps = 0;
+    }
+
+    if (!card.state) {
+        card.state = "new";
+    }
+
+    if (
+        typeof card.step !==
+        "number"
+    ) {
+        card.step = 0;
+    }
+
+    if (!card.mode) {
+        card.mode = "text";
+    }
+});
+
+
+// ==============================
+// DATE ACTUELLE
+// ==============================
+
+function now() {
+    return Date.now();
+}
 
 
 // ==============================
 // FILE DE CARTES
 // ==============================
 
-let queue = [];
-
-
-let currentCard =
-    null;
-
-
-let currentDirection =
-    null;
-
-
-/*
- * Le "mode" choisi sur l'écran de préparation
- * (flashcard / écriture / dessin) s'applique
- * aux cartes texte. Mais une carte "dessin"
- * n'a de sens qu'avec l'interface dessin, et
- * une carte texte n'a pas d'interface dessin :
- * currentEffectiveMode règle ce conflit
- * carte par carte.
- */
-
-let currentEffectiveMode =
-    "flashcard";
-
-
-function getEffectiveModeForCard(
-    card
-) {
-
-    if (
-        card.mode === "drawing"
-    ) {
-
-        return "drawing";
-
-    }
-
-
-    if (
-        mode === "drawing"
-    ) {
-
-        return "flashcard";
-
-    }
-
-
-    return mode;
-
-}
-
-
-/*
- * Garde une trace de la dernière
- * note donnée, pour pouvoir l'annuler.
- */
-
-let lastAction =
-    null;
-
-
-// ==============================
-// UTILITAIRES
-// ==============================
-
-function shuffle(array) {
-
-    const copy =
-        [...array];
-
-
-    for (
-        let i = copy.length - 1;
-        i > 0;
-        i--
-    ) {
-
-        const j =
-            Math.floor(
-                Math.random() * (i + 1)
-            );
-
-
-        [
-            copy[i],
-            copy[j]
-        ] =
-        [
-            copy[j],
-            copy[i]
-        ];
-
-    }
-
-
-    return copy;
-
-}
-
-
-// ==============================
-// CARTES DUES
-// ==============================
-
-function isDue(card) {
-
-    return (
-        !card.nextReview ||
-        card.nextReview <= Date.now()
-    );
-
-}
-
-
-// ==============================
-// CONSTRUIRE LA FILE
-// ==============================
-
 function buildQueue() {
 
+    const currentTime =
+        now();
+
     const newCards =
-        selectedDeck.cards.filter(
+        cards.filter(
             card =>
                 card.state === "new"
         );
 
-
-    const reviewCards =
-        selectedDeck.cards.filter(
+    const learningCards =
+        cards.filter(
             card =>
-                card.state !== "new" &&
-                isDue(card)
+                card.state === "learning" &&
+                card.nextReview <= currentTime
         );
 
+    const reviewCards =
+        cards.filter(
+            card =>
+                card.state === "review" &&
+                card.nextReview <= currentTime
+        );
 
-    const selectedNewCards =
-        shuffle(
-            newCards
-        ).slice(
+    const limitedNew =
+        newCards.slice(
             0,
             newCardLimit
         );
 
-
-    const selectedReviewCards =
-        shuffle(
-            reviewCards
-        ).slice(
+    const limitedReview =
+        reviewCards.slice(
             0,
             reviewLimit
         );
 
-
     return [
-        ...selectedNewCards,
-        ...selectedReviewCards
+        ...learningCards,
+        ...limitedNew,
+        ...limitedReview
     ];
-
 }
 
-
-// ==============================
-// DIRECTION
-// ==============================
-
-function chooseDirection() {
-
-    if (
-        direction === "fr-nl"
-    ) {
-
-        return "fr-nl";
-
-    }
-
-
-    if (
-        direction === "nl-fr"
-    ) {
-
-        return "nl-fr";
-
-    }
-
-
-    /*
-     * Pour le mode random,
-     * on choisit une direction
-     * pour chaque carte.
-     */
-
-    return Math.random() < 0.5
-        ? "fr-nl"
-        : "nl-fr";
-
-}
+let queue =
+    buildQueue();
 
 
 // ==============================
-// QUESTION / RÉPONSE
+// ETAT DE LA SESSION
 // ==============================
 
-function getQuestionAndAnswer(
-    card
-) {
+let currentCard = null;
 
-    /*
-     * Les cartes "dessin" n'ont pas de
-     * texte de réponse : la réponse est
-     * l'image stockée dans card.drawing.
-     * On ne leur applique donc pas le sens
-     * fr-nl / nl-fr, qui viderait la question
-     * quand card.answer est vide.
-     */
+let lastAction = null;
+
+
+// ==============================
+// MODE EFFECTIF
+// ==============================
+
+function getEffectiveModeForCard(card) {
 
     if (
         card.mode === "drawing"
     ) {
-
-        currentDirection =
-            "drawing";
-
-
-        return {
-
-            question:
-                card.word,
-
-            answer:
-                card.answer
-
-        };
-
+        return "drawing";
     }
-
-
-    const selectedDirection =
-        chooseDirection();
-
-
-    currentDirection =
-        selectedDirection;
-
 
     if (
-        selectedDirection === "fr-nl"
+        selectedMode === "drawing"
     ) {
-
-        return {
-
-            question:
-                card.answer,
-
-            answer:
-                card.word
-
-        };
-
+        return "flashcard";
     }
 
+    return selectedMode;
+}
+
+
+// ==============================
+// QUESTION / REPONSE
+// ==============================
+
+function getQuestionAndAnswer(card) {
+
+    const effectiveMode =
+        getEffectiveModeForCard(card);
+
+    if (
+        effectiveMode ===
+        "drawing"
+    ) {
+        return {
+            question: card.word,
+            answer: card.answer
+        };
+    }
+
+    if (
+        selectedDirection ===
+        "fr-nl"
+    ) {
+        return {
+            question: card.answer,
+            answer: card.word
+        };
+    }
 
     return {
-
-        question:
-            card.word,
-
-        answer:
-            card.answer
-
+        question: card.word,
+        answer: card.answer
     };
-
 }
 
 
 // ==============================
-// DESSIN : POSITION
+// NORMALISATION TEXTE
 // ==============================
 
-function getCanvasPosition(
-    event
-) {
-
-    const rect =
-        drawingCanvas.getBoundingClientRect();
-
-
-    return {
-
-        x:
-            (
-                event.clientX -
-                rect.left
-            ) *
-            (
-                drawingCanvas.width /
-                rect.width
-            ),
-
-        y:
-            (
-                event.clientY -
-                rect.top
-            ) *
-            (
-                drawingCanvas.height /
-                rect.height
-            )
-
-    };
-
-}
-
-
-// ==============================
-// DESSIN : COMMENCER
-// ==============================
-
-function startDrawing(
-    event
-) {
-
-    if (!drawingCanvas) {
-
-        return;
-
-    }
-
-
-    /*
-     * Avec une souris, seul le clic gauche
-     * démarre le dessin.
-     */
-
-    if (
-        event.pointerType === "mouse" &&
-        event.button !== 0
-    ) {
-
-        return;
-
-    }
-
-
-    event.preventDefault();
-
-
-    isDrawing =
-        true;
-
-
-    drawingCanvas.setPointerCapture(
-        event.pointerId
-    );
-
-
-    const position =
-        getCanvasPosition(
-            event
-        );
-
-
-    lastDrawingX =
-        position.x;
-
-
-    lastDrawingY =
-        position.y;
-
-
-    /*
-     * Petit point pour que le dessin
-     * fonctionne même avec un simple clic.
-     */
-
-    drawingContext.beginPath();
-
-    drawingContext.arc(
-        position.x,
-        position.y,
-        4,
-        0,
-        Math.PI * 2
-    );
-
-    drawingContext.fillStyle =
-        "#222";
-
-    drawingContext.fill();
-
-}
-
-
-// ==============================
-// DESSIN : DESSINER
-// ==============================
-
-function draw(
-    event
-) {
-
-    if (
-        !isDrawing ||
-        !drawingContext
-    ) {
-
-        return;
-
-    }
-
-
-    event.preventDefault();
-
-
-    const position =
-        getCanvasPosition(
-            event
-        );
-
-
-    drawingContext.beginPath();
-
-    drawingContext.moveTo(
-        lastDrawingX,
-        lastDrawingY
-    );
-
-    drawingContext.lineTo(
-        position.x,
-        position.y
-    );
-
-
-    drawingContext.lineWidth =
-        5;
-
-
-    drawingContext.lineCap =
-        "round";
-
-
-    drawingContext.lineJoin =
-        "round";
-
-
-    drawingContext.strokeStyle =
-        "#222";
-
-
-    drawingContext.stroke();
-
-
-    lastDrawingX =
-        position.x;
-
-
-    lastDrawingY =
-        position.y;
-
-}
-
-
-// ==============================
-// DESSIN : ARRÊTER
-// ==============================
-
-function stopDrawing(
-    event
-) {
-
-    if (!isDrawing) {
-
-        return;
-
-    }
-
-
-    isDrawing =
-        false;
-
-
-    if (
-        drawingCanvas.hasPointerCapture(
-            event.pointerId
+function normalizeText(text) {
+
+    return text
+        .toLowerCase()
+        .trim()
+        .normalize("NFD")
+        .replace(
+            /[\u0300-\u036f]/g,
+            ""
         )
-    ) {
-
-        drawingCanvas.releasePointerCapture(
-            event.pointerId
+        .replace(
+            /\s+/g,
+            " "
         );
-
-    }
-
 }
 
 
 // ==============================
-// EFFACER LE DESSIN
-// ==============================
-
-function clearDrawing() {
-
-    if (
-        !drawingContext ||
-        !drawingCanvas
-    ) {
-
-        return;
-
-    }
-
-
-    drawingContext.clearRect(
-        0,
-        0,
-        drawingCanvas.width,
-        drawingCanvas.height
-    );
-
-}
-
-
-// ==============================
-// INITIALISER LE DESSIN
-// ==============================
-
-function resetDrawing() {
-
-    if (!drawingCanvas) {
-
-        return;
-
-    }
-
-
-    clearDrawing();
-
-
-    isDrawing =
-        false;
-
-
-    drawingCanvas.style.pointerEvents =
-        "auto";
-
-}
-
-
-// ==============================
-// AFFICHER LA CARTE
+// AFFICHAGE D'UNE CARTE
 // ==============================
 
 function displayCard() {
@@ -878,330 +381,270 @@ function displayCard() {
     if (
         queue.length === 0
     ) {
-
         finishSession();
-
         return;
-
     }
-
 
     currentCard =
         queue[0];
 
-
-    currentEffectiveMode =
-        getEffectiveModeForCard(
-            currentCard
-        );
-
-
-    const result =
+    const {
+        question,
+        answer
+    } =
         getQuestionAndAnswer(
             currentCard
         );
 
-
     questionElement.textContent =
-        result.question;
-
+        question;
 
     answerElement.textContent =
-        result.answer;
-
+        answer;
 
     answerElement.classList.add(
         "hidden"
     );
 
-
     resultElement.textContent =
         "";
 
+    resultElement.className =
+        "";
 
-    /*
-     * On cache toutes les zones
-     * spécifiques aux modes.
-     */
+    metaElement.textContent =
+        "";
+
+    referenceDrawing.classList.add(
+        "hidden"
+    );
+
+    referenceDrawing.src =
+        "";
 
     writingArea.classList.add(
         "hidden"
     );
 
-
-    if (drawingArea) {
-
-        drawingArea.classList.add(
-            "hidden"
-        );
-
-    }
-
-
-    if (referenceDrawingElement) {
-
-        referenceDrawingElement.classList.add(
-            "hidden"
-        );
-
-        referenceDrawingElement.removeAttribute(
-            "src"
-        );
-
-    }
-
-
-    /*
-     * MODE ÉCRITURE
-     */
-
-    if (
-        currentEffectiveMode === "writing"
-    ) {
-
-        writingArea.classList.remove(
-            "hidden"
-        );
-
-
-        answerInput.value =
-            "";
-
-
-        answerInput.focus();
-
-    }
-
-
-    /*
-     * MODE DESSIN
-     */
-
-    if (
-        currentEffectiveMode === "drawing"
-    ) {
-
-        if (!drawingArea) {
-
-            console.error(
-                "La zone de dessin est absente de flashcards.html."
-            );
-
-        } else {
-
-            drawingArea.classList.remove(
-                "hidden"
-            );
-
-
-            resetDrawing();
-
-
-            if (
-                referenceDrawingElement &&
-                currentCard.drawing
-            ) {
-
-                referenceDrawingElement.src =
-                    currentCard.drawing;
-
-            }
-
-        }
-
-    }
-
-
-    /*
-     * MODE FLASHCARD
-     */
-
-    if (
-        currentEffectiveMode === "flashcard"
-    ) {
-
-        writingArea.classList.add(
-            "hidden"
-        );
-
-    }
-
-
-    showArea.classList.remove(
+    drawingArea.classList.add(
         "hidden"
     );
 
+    showArea.style.display =
+        "block";
 
     ratingArea.classList.add(
         "hidden"
     );
 
+    showAnswerButton.disabled =
+        false;
 
-    skipButton.classList.remove(
-        "hidden"
-    );
+    if (
+        answerInput
+    ) {
+        answerInput.value =
+            "";
+    }
 
+    const effectiveMode =
+        getEffectiveModeForCard(
+            currentCard
+        );
 
-    metaElement.textContent =
-        `${selectedDeck.name} — ${queue.length} carte(s) restante(s)`;
+    if (
+        effectiveMode ===
+        "writing"
+    ) {
+        writingArea.classList.remove(
+            "hidden"
+        );
 
+        answerInput.focus();
+    }
+
+    if (
+        effectiveMode ===
+        "drawing"
+    ) {
+        drawingArea.classList.remove(
+            "hidden"
+        );
+
+        clearCanvas();
+    }
+
+    updateProgress();
 }
 
 
 // ==============================
-// AFFICHER LA RÉPONSE
+// PROGRESSION
 // ==============================
+
+function updateProgress() {
+
+    const total =
+        queue.length;
+
+    const position =
+        total === 0
+            ? 0
+            : 1;
+
+    progressElement.textContent =
+        `${position} carte restante${
+            total > 1 ? "s" : ""
+        }`;
+}
+
+
+// ==============================
+// VOIR LA REPONSE
+// ==============================
+
+showAnswerButton.addEventListener(
+    "click",
+    showAnswer
+);
+
 
 function showAnswer() {
 
     if (!currentCard) {
-
         return;
-
     }
 
+    const effectiveMode =
+        getEffectiveModeForCard(
+            currentCard
+        );
 
-    /*
-     * En mode dessin, il n'y a pas de
-     * texte de réponse : on affiche le
-     * dessin de référence à la place.
-     */
+    showAnswerButton.disabled =
+        true;
 
     if (
-        currentEffectiveMode === "drawing"
+        effectiveMode ===
+        "drawing"
     ) {
 
-        answerElement.classList.add(
-            "hidden"
-        );
-
-
         if (
-            referenceDrawingElement &&
             currentCard.drawing
         ) {
+            referenceDrawing.src =
+                currentCard.drawing;
 
-            referenceDrawingElement.classList.remove(
+            referenceDrawing.classList.remove(
                 "hidden"
             );
-
         }
 
-    } else {
+        showArea.style.display =
+            "none";
 
-        answerElement.classList.remove(
+        ratingArea.classList.remove(
             "hidden"
         );
 
+        displayButtonDelays();
+
+        return;
     }
 
-
-    showArea.classList.add(
+    answerElement.classList.remove(
         "hidden"
     );
 
-
-    /*
-     * En mode dessin, on empêche
-     * de continuer à modifier le dessin
-     * après révélation.
-     */
+    showArea.style.display =
+        "none";
 
     if (
-        currentEffectiveMode === "drawing" &&
-        drawingCanvas
-    ) {
-
-        drawingCanvas.style.pointerEvents =
-            "none";
-
-    }
-
-
-    /*
-     * En mode écriture, on vérifie
-     * immédiatement la réponse.
-     */
-
-    if (
-        currentEffectiveMode === "writing"
+        effectiveMode ===
+        "writing"
     ) {
 
         checkWritingAnswer();
 
         return;
-
     }
-
 
     ratingArea.classList.remove(
         "hidden"
     );
 
-
     displayButtonDelays();
-
 }
 
 
 // ==============================
-// VÉRIFIER L'ÉCRITURE
+// REPONSE ECRITE
 // ==============================
-
-function normalizeAnswer(
-    text
-) {
-
-    return text
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, " ");
-
-}
-
 
 function checkWritingAnswer() {
 
     const userAnswer =
-        normalizeAnswer(
+        normalizeText(
             answerInput.value
         );
 
-
     const correctAnswer =
-        normalizeAnswer(
+        normalizeText(
             answerElement.textContent
         );
 
-
     if (
-        userAnswer === correctAnswer
+        userAnswer ===
+        correctAnswer
     ) {
 
         resultElement.textContent =
             "✓ Correct !";
 
-    } else {
+        resultElement.className =
+            "correct";
 
-        resultElement.textContent =
-            "✗ Incorrect.";
+        /*
+         * Réponse correcte :
+         * on affiche directement
+         * les 4 boutons.
+         */
 
+        ratingArea.classList.remove(
+            "hidden"
+        );
+
+        displayButtonDelays();
+
+        return;
     }
 
+    /*
+     * Réponse incorrecte :
+     * on ne propose d'abord que
+     * Again et Good.
+     *
+     * Good permet de dire :
+     * "Je connaissais la réponse,
+     * c'était juste une faute de frappe."
+     */
+
+    resultElement.textContent =
+        `✗ Incorrect. Réponse : ${answerElement.textContent}`;
+
+    resultElement.className =
+        "incorrect";
 
     showWritingCorrectionButtons();
-
 }
 
 
 // ==============================
-// BOUTONS DE CORRECTION ÉCRITURE
+// BOUTONS APRES ERREUR DE SAISIE
 // ==============================
 
 function showWritingCorrectionButtons() {
 
     ratingArea.innerHTML = `
-
         <button id="writing-again">
             Again
         </button>
@@ -1209,17 +652,16 @@ function showWritingCorrectionButtons() {
         <button id="writing-good">
             Good
         </button>
-
     `;
-
 
     ratingArea.classList.remove(
         "hidden"
     );
 
-
     document
-        .querySelector("#writing-again")
+        .getElementById(
+            "writing-again"
+        )
         .addEventListener(
             "click",
             () => {
@@ -1227,404 +669,133 @@ function showWritingCorrectionButtons() {
                 rateCard(
                     "again"
                 );
-
             }
         );
 
-
     document
-        .querySelector("#writing-good")
+        .getElementById(
+            "writing-good"
+        )
         .addEventListener(
             "click",
             () => {
 
-                rateCard(
-                    "good"
-                );
+                /*
+                 * Ici Good signifie :
+                 * "J'avais la bonne réponse,
+                 * mais j'ai simplement fait
+                 * une faute de frappe."
+                 *
+                 * On ne considère donc PAS
+                 * cette réponse comme une erreur.
+                 *
+                 * On affiche ensuite les 4
+                 * boutons normaux afin que
+                 * l'utilisateur puisse choisir
+                 * la difficulté.
+                 */
 
+                ratingArea.innerHTML = `
+                    <button data-rating="again">
+                        Again
+                        <span id="again-delay"
+                              class="rating-delay">
+                        </span>
+                    </button>
+
+                    <button data-rating="hard">
+                        Hard
+                        <span id="hard-delay"
+                              class="rating-delay">
+                        </span>
+                    </button>
+
+                    <button data-rating="good">
+                        Good
+                        <span id="good-delay"
+                              class="rating-delay">
+                        </span>
+                    </button>
+
+                    <button data-rating="easy">
+                        Easy
+                        <span id="easy-delay"
+                              class="rating-delay">
+                        </span>
+                    </button>
+                `;
+
+                displayButtonDelays();
             }
         );
-
 }
 
 
 // ==============================
-// RESTAURER LES BOUTONS SRS
+// RESTAURATION DES 4 BOUTONS
 // ==============================
 
 function restoreRatingButtons() {
 
     ratingArea.innerHTML = `
-
-        <button
-            id="again-button"
-            data-rating="again"
-        >
+        <button data-rating="again">
             Again
-            <span id="again-delay"></span>
+            <span id="again-delay"
+                  class="rating-delay">
+            </span>
         </button>
 
-
-        <button
-            id="hard-button"
-            data-rating="hard"
-        >
+        <button data-rating="hard">
             Hard
-            <span id="hard-delay"></span>
+            <span id="hard-delay"
+                  class="rating-delay">
+            </span>
         </button>
 
-
-        <button
-            id="good-button"
-            data-rating="good"
-        >
+        <button data-rating="good">
             Good
-            <span id="good-delay"></span>
+            <span id="good-delay"
+                  class="rating-delay">
+            </span>
         </button>
 
-
-        <button
-            id="easy-button"
-            data-rating="easy"
-        >
+        <button data-rating="easy">
             Easy
-            <span id="easy-delay"></span>
+            <span id="easy-delay"
+                  class="rating-delay">
+            </span>
         </button>
-
     `;
 
+    ratingArea
+        .querySelectorAll(
+            "[data-rating]"
+        )
+        .forEach(button => {
 
-    document
-        .querySelector("#again-button")
-        .addEventListener(
-            "click",
-            () => rateCard("again")
-        );
+            button.addEventListener(
+                "click",
+                () => {
 
+                    const rating =
+                        button.dataset.rating;
 
-    document
-        .querySelector("#hard-button")
-        .addEventListener(
-            "click",
-            () => rateCard("hard")
-        );
-
-
-    document
-        .querySelector("#good-button")
-        .addEventListener(
-            "click",
-            () => rateCard("good")
-        );
-
-
-    document
-        .querySelector("#easy-button")
-        .addEventListener(
-            "click",
-            () => rateCard("easy")
-        );
-
+                    rateCard(
+                        rating
+                    );
+                }
+            );
+        });
 }
 
 
 // ==============================
-// FORMATAGE DU DÉLAI
-// ==============================
-
-function formatDelay(
-    milliseconds
-) {
-
-    const minutes =
-        Math.round(
-            milliseconds /
-            (60 * 1000)
-        );
-
-
-    if (
-        minutes < 60
-    ) {
-
-        return `${Math.max(1, minutes)} min`;
-
-    }
-
-
-    const hours =
-        Math.round(
-            minutes / 60
-        );
-
-
-    if (
-        hours < 24
-    ) {
-
-        return `${hours} h`;
-
-    }
-
-
-    const days =
-        Math.round(
-            hours / 24
-        );
-
-
-    return `${days} j`;
-
-}
-
-
-// ==============================
-// CALCUL DU PROCHAIN DÉLAI
-// ==============================
-
-function getRatingDelay(
-    rating
-) {
-
-    if (!currentCard) {
-
-        return 0;
-
-    }
-
-
-    const now =
-        Date.now();
-
-
-    /*
-     * NOUVELLE CARTE
-     */
-
-    if (
-        currentCard.state === "new"
-    ) {
-
-        if (
-            rating === "again"
-        ) {
-
-            return (
-                defaultSettings.learningSteps[0] *
-                60 *
-                1000
-            );
-
-        }
-
-
-        if (
-            rating === "hard"
-        ) {
-
-            return (
-                defaultSettings.learningSteps[0] *
-                60 *
-                1000
-            );
-
-        }
-
-
-        if (
-            rating === "good"
-        ) {
-
-            return (
-                defaultSettings.graduatingInterval *
-                24 *
-                60 *
-                60 *
-                1000
-            );
-
-        }
-
-
-        if (
-            rating === "easy"
-        ) {
-
-            return (
-                defaultSettings.easyInterval *
-                24 *
-                60 *
-                60 *
-                1000
-            );
-
-        }
-
-    }
-
-
-    /*
-     * CARTE EN APPRENTISSAGE
-     */
-
-    if (
-        currentCard.state === "learning"
-    ) {
-
-        if (
-            rating === "again"
-        ) {
-
-            return (
-                defaultSettings.learningSteps[0] *
-                60 *
-                1000
-            );
-
-        }
-
-
-        if (
-            rating === "hard"
-        ) {
-
-            return (
-                defaultSettings.learningSteps[1] *
-                60 *
-                1000
-            );
-
-        }
-
-
-        if (
-            rating === "good"
-        ) {
-
-            return (
-                defaultSettings.graduatingInterval *
-                24 *
-                60 *
-                60 *
-                1000
-            );
-
-        }
-
-
-        if (
-            rating === "easy"
-        ) {
-
-            return (
-                defaultSettings.easyInterval *
-                24 *
-                60 *
-                60 *
-                1000
-            );
-
-        }
-
-    }
-
-
-    /*
-     * CARTE EN RÉVISION
-     */
-
-    const interval =
-        currentCard.interval ||
-        1;
-
-
-    if (
-        rating === "again"
-    ) {
-
-        return (
-            defaultSettings.learningSteps[0] *
-            60 *
-            1000
-        );
-
-    }
-
-
-    if (
-        rating === "hard"
-    ) {
-
-        return (
-            interval *
-            defaultSettings.hardFactor *
-            24 *
-            60 *
-            60 *
-            1000
-        );
-
-    }
-
-
-    if (
-        rating === "good"
-    ) {
-
-        return (
-            interval *
-            defaultSettings.goodFactor *
-            24 *
-            60 *
-            60 *
-            1000
-        );
-
-    }
-
-
-    if (
-        rating === "easy"
-    ) {
-
-        return (
-            interval *
-            defaultSettings.easyFactor *
-            24 *
-            60 *
-            60 *
-            1000
-        );
-
-    }
-
-
-    return (
-        interval *
-        24 *
-        60 *
-        60 *
-        1000
-    );
-
-}
-
-
-// ==============================
-// AFFICHER LES DÉLAIS
+// DELAIS DES BOUTONS
 // ==============================
 
 function displayButtonDelays() {
 
-    if (!currentCard) {
-
-        return;
-
-    }
-
-
     restoreRatingButtons();
-
 
     const ratings = [
         "again",
@@ -1633,481 +804,568 @@ function displayButtonDelays() {
         "easy"
     ];
 
-
     ratings.forEach(
         rating => {
 
-            const delay =
+            const element =
+                document.getElementById(
+                    `${rating}-delay`
+                );
+
+            if (!element) {
+                return;
+            }
+
+            element.textContent =
                 getRatingDelay(
                     rating
                 );
-
-
-            const element =
-                document.querySelector(
-                    `#${rating}-delay`
-                );
-
-
-            if (element) {
-
-                element.textContent =
-                    `(${formatDelay(delay)})`;
-
-            }
-
         }
     );
-
 }
 
 
 // ==============================
-// PLANIFIER LA CARTE
+// CALCUL DES DELAIS
 // ==============================
 
-function scheduleCard(
-    rating
-) {
+function getRatingDelay(rating) {
 
-    const now =
-        Date.now();
+    if (!currentCard) {
+        return "";
+    }
+
+    const card =
+        currentCard;
+
+    if (
+        card.state ===
+        "new"
+    ) {
+
+        if (
+            rating === "again"
+        ) {
+            return "1 min";
+        }
+
+        if (
+            rating === "hard"
+        ) {
+            return "6 min";
+        }
+
+        if (
+            rating === "good"
+        ) {
+            return "1 j";
+        }
+
+        if (
+            rating === "easy"
+        ) {
+            return "4 j";
+        }
+    }
+
+    if (
+        card.state ===
+        "learning"
+    ) {
+
+        if (
+            rating === "again"
+        ) {
+            return "1 min";
+        }
+
+        if (
+            rating === "hard"
+        ) {
+            return "6 min";
+        }
+
+        if (
+            rating === "good"
+        ) {
+            return "1 j";
+        }
+
+        if (
+            rating === "easy"
+        ) {
+            return "4 j";
+        }
+    }
+
+    if (
+        card.state ===
+        "review"
+    ) {
+
+        const interval =
+            card.interval || 1;
+
+        if (
+            rating === "again"
+        ) {
+            return "10 min";
+        }
+
+        if (
+            rating === "hard"
+        ) {
+            return `${Math.max(
+                1,
+                Math.round(
+                    interval *
+                    defaultSettings.hardFactor
+                )
+            )} j`;
+        }
+
+        if (
+            rating === "good"
+        ) {
+            return `${Math.max(
+                1,
+                Math.round(
+                    interval *
+                    defaultSettings.goodFactor
+                )
+            )} j`;
+        }
+
+        if (
+            rating === "easy"
+        ) {
+            return `${Math.max(
+                1,
+                Math.round(
+                    interval *
+                    defaultSettings.easyFactor
+                )
+            )} j`;
+        }
+    }
+
+    return "";
+}
 
 
-    const delay =
-        getRatingDelay(
-            rating
-        );
+// ==============================
+// PLANIFICATION SRS
+// ==============================
 
+function scheduleCard(rating) {
 
-    /*
-     * AGAIN
-     */
+    const card =
+        currentCard;
+
+    if (!card) {
+        return;
+    }
+
+    const currentTime =
+        now();
 
     if (
         rating === "again"
     ) {
 
-        currentCard.state =
+        card.state =
             "learning";
 
+        card.step = 0;
 
-        currentCard.step =
-            0;
+        card.interval = 1;
 
+        card.nextReview =
+            currentTime +
+            1 * 60 * 1000;
 
-        currentCard.interval =
-            1;
-
-
-        currentCard.nextReview =
-            now + delay;
-
-
-        currentCard.reps =
-            (currentCard.reps || 0) + 1;
-
+        card.reps++;
 
         return;
-
     }
 
-
-    /*
-     * NOUVELLE CARTE
-     */
-
     if (
-        currentCard.state === "new"
+        card.state ===
+        "new"
     ) {
-
-        if (
-            rating === "good"
-        ) {
-
-            currentCard.state =
-                "review";
-
-
-            currentCard.interval =
-                defaultSettings.graduatingInterval;
-
-        }
-
-
-        if (
-            rating === "easy"
-        ) {
-
-            currentCard.state =
-                "review";
-
-
-            currentCard.interval =
-                defaultSettings.easyInterval;
-
-        }
-
 
         if (
             rating === "hard"
         ) {
 
-            currentCard.state =
+            card.state =
                 "learning";
 
+            card.step = 0;
 
-            currentCard.step =
-                0;
+            card.nextReview =
+                currentTime +
+                6 * 60 * 1000;
 
+            card.interval = 1;
+
+            card.reps++;
+
+            return;
         }
-
-
-        currentCard.nextReview =
-            now + delay;
-
-
-        currentCard.reps =
-            (currentCard.reps || 0) + 1;
-
-
-        return;
-
-    }
-
-
-    /*
-     * APPRENTISSAGE
-     */
-
-    if (
-        currentCard.state === "learning"
-    ) {
 
         if (
             rating === "good"
         ) {
 
-            currentCard.state =
+            card.state =
                 "review";
 
+            card.interval =
+                defaultSettings
+                    .graduatingInterval;
 
-            currentCard.interval =
-                defaultSettings.graduatingInterval;
+            card.nextReview =
+                currentTime +
+                card.interval *
+                24 *
+                60 *
+                60 *
+                1000;
 
+            card.reps++;
+
+            return;
         }
-
 
         if (
             rating === "easy"
         ) {
 
-            currentCard.state =
+            card.state =
                 "review";
 
+            card.interval =
+                defaultSettings
+                    .easyInterval;
 
-            currentCard.interval =
-                defaultSettings.easyInterval;
+            card.nextReview =
+                currentTime +
+                card.interval *
+                24 *
+                60 *
+                60 *
+                1000;
 
+            card.reps++;
+
+            return;
         }
+    }
 
+    if (
+        card.state ===
+        "learning"
+    ) {
 
         if (
             rating === "hard"
         ) {
 
-            currentCard.state =
-                "learning";
+            card.nextReview =
+                currentTime +
+                6 * 60 * 1000;
 
+            card.reps++;
+
+            return;
         }
 
+        if (
+            rating === "good"
+        ) {
 
-        currentCard.nextReview =
-            now + delay;
+            card.state =
+                "review";
 
+            card.interval =
+                defaultSettings
+                    .graduatingInterval;
 
-        currentCard.reps =
-            (currentCard.reps || 0) + 1;
+            card.nextReview =
+                currentTime +
+                card.interval *
+                24 *
+                60 *
+                60 *
+                1000;
 
+            card.reps++;
 
-        return;
+            return;
+        }
 
+        if (
+            rating === "easy"
+        ) {
+
+            card.state =
+                "review";
+
+            card.interval =
+                defaultSettings
+                    .easyInterval;
+
+            card.nextReview =
+                currentTime +
+                card.interval *
+                24 *
+                60 *
+                60 *
+                1000;
+
+            card.reps++;
+
+            return;
+        }
     }
-
-
-    /*
-     * RÉVISION
-     */
-
-    currentCard.state =
-        "review";
-
 
     if (
-        rating === "hard"
+        card.state ===
+        "review"
     ) {
 
-        currentCard.interval =
-            Math.max(
-                1,
-                Math.round(
-                    (
-                        currentCard.interval ||
-                        1
-                    ) *
-                    defaultSettings.hardFactor
-                )
-            );
+        const interval =
+            card.interval || 1;
 
+        if (
+            rating === "hard"
+        ) {
+
+            card.interval =
+                Math.max(
+                    1,
+                    Math.round(
+                        interval *
+                        defaultSettings
+                            .hardFactor
+                    )
+                );
+        }
+
+        if (
+            rating === "good"
+        ) {
+
+            card.interval =
+                Math.max(
+                    1,
+                    Math.round(
+                        interval *
+                        defaultSettings
+                            .goodFactor
+                    )
+                );
+        }
+
+        if (
+            rating === "easy"
+        ) {
+
+            card.interval =
+                Math.max(
+                    1,
+                    Math.round(
+                        interval *
+                        defaultSettings
+                            .easyFactor
+                    )
+                );
+        }
+
+        card.nextReview =
+            currentTime +
+            card.interval *
+            24 *
+            60 *
+            60 *
+            1000;
+
+        card.reps++;
     }
-
-
-    if (
-        rating === "good"
-    ) {
-
-        currentCard.interval =
-            Math.max(
-                1,
-                Math.round(
-                    (
-                        currentCard.interval ||
-                        1
-                    ) *
-                    defaultSettings.goodFactor
-                )
-            );
-
-    }
-
-
-    if (
-        rating === "easy"
-    ) {
-
-        currentCard.interval =
-            Math.max(
-                1,
-                Math.round(
-                    (
-                        currentCard.interval ||
-                        1
-                    ) *
-                    defaultSettings.easyFactor
-                )
-            );
-
-    }
-
-
-    currentCard.nextReview =
-        now + delay;
-
-
-    currentCard.reps =
-        (currentCard.reps || 0) + 1;
-
 }
 
 
 // ==============================
-// NOTER LA CARTE
+// NOTATION D'UNE CARTE
 // ==============================
 
-function rateCard(
-    rating
-) {
+function rateCard(rating) {
 
     if (!currentCard) {
-
         return;
-
     }
 
+    const previousState =
+        JSON.parse(
+            JSON.stringify(
+                currentCard
+            )
+        );
 
-    const cardBeingRated =
-        currentCard;
-
-
-    const previousCardState = {
-
-        level:
-            cardBeingRated.level,
-
-        interval:
-            cardBeingRated.interval,
-
-        nextReview:
-            cardBeingRated.nextReview,
-
-        reps:
-            cardBeingRated.reps,
-
-        state:
-            cardBeingRated.state,
-
-        step:
-            cardBeingRated.step
-
+    lastAction = {
+        card: currentCard,
+        previousState: previousState,
+        rating: rating
     };
-
-
-    const previousQueue =
-        [...queue];
-
 
     scheduleCard(
         rating
     );
 
-
     saveDecks(
         decks
     );
 
-
     /*
-     * On retire la carte de la file.
+     * La carte quitte la position actuelle
+     * de la file.
      */
 
     queue.shift();
 
-
     /*
-     * Si la carte doit revenir
-     * rapidement, on la remet dans
-     * la file pour cette session.
+     * Again remet la carte dans la file
+     * afin qu'elle puisse être revue
+     * pendant la même session.
      */
 
     if (
         rating === "again"
     ) {
-
         queue.push(
             currentCard
         );
-
     }
-
-
-    lastAction = {
-
-        card:
-            cardBeingRated,
-
-        previousState:
-            previousCardState,
-
-        previousQueue:
-            previousQueue
-
-    };
-
-
-    showUndoButton();
-
 
     currentCard =
         null;
 
+    undoButton.classList.remove(
+        "hidden"
+    );
 
     displayCard();
-
 }
 
 
 // ==============================
-// ANNULER LA DERNIÈRE RÉPONSE
+// ANNULER
 // ==============================
 
-function showUndoButton() {
-
-    if (undoButton) {
-
-        undoButton.classList.remove(
-            "hidden"
-        );
-
-    }
-
-}
-
-
-function hideUndoButton() {
-
-    if (undoButton) {
-
-        undoButton.classList.add(
-            "hidden"
-        );
-
-    }
-
-}
+undoButton.addEventListener(
+    "click",
+    undoLastRating
+);
 
 
 function undoLastRating() {
 
     if (!lastAction) {
-
         return;
-
     }
 
+    const {
+        card,
+        previousState,
+        rating
+    } =
+        lastAction;
 
     Object.assign(
-        lastAction.card,
-        lastAction.previousState
+        card,
+        previousState
     );
 
+    /*
+     * Si la carte avait été
+     * retirée de la file, on
+     * la remet.
+     */
 
-    queue =
-        lastAction.previousQueue;
+    if (
+        !queue.includes(card)
+    ) {
+        queue.unshift(
+            card
+        );
+    }
 
+    if (
+        rating === "again"
+    ) {
 
-    lastAction =
-        null;
+        const index =
+            queue.indexOf(card);
 
+        if (
+            index !== -1
+        ) {
+            queue.splice(
+                index,
+                1
+            );
+        }
+
+        queue.unshift(
+            card
+        );
+    }
 
     saveDecks(
         decks
     );
 
+    lastAction =
+        null;
 
-    hideUndoButton();
+    undoButton.classList.add(
+        "hidden"
+    );
 
+    currentCard =
+        null;
 
     displayCard();
-
 }
 
 
 // ==============================
-// PASSER UNE CARTE
+// PASSER
 // ==============================
+
+skipButton.addEventListener(
+    "click",
+    skipCard
+);
+
 
 function skipCard() {
 
-    if (
-        queue.length <= 1
-    ) {
-
+    if (!currentCard) {
         return;
-
     }
 
-
-    const skippedCard =
-        queue.shift();
-
+    queue.shift();
 
     queue.push(
-        skippedCard
+        currentCard
     );
 
+    currentCard =
+        null;
 
     displayCard();
-
 }
 
 
@@ -2117,69 +1375,144 @@ function skipCard() {
 
 function finishSession() {
 
-    questionElement.textContent =
-        "";
-
-
-    answerElement.classList.add(
+    cardElement.classList.add(
         "hidden"
     );
 
-
-    writingArea.classList.add(
-        "hidden"
-    );
-
-
-    if (drawingArea) {
-
-        drawingArea.classList.add(
-            "hidden"
-        );
-
-    }
-
-
-    if (referenceDrawingElement) {
-
-        referenceDrawingElement.classList.add(
-            "hidden"
-        );
-
-    }
-
-
-    showArea.classList.add(
-        "hidden"
-    );
-
+    showArea.style.display =
+        "none";
 
     ratingArea.classList.add(
         "hidden"
     );
 
-
     skipButton.classList.add(
         "hidden"
     );
-
-
-    hideUndoButton();
-
-
-    lastAction =
-        null;
-
 
     completionElement.classList.remove(
         "hidden"
     );
 
-
-    metaElement.textContent =
-        "Session terminée.";
-
+    completionText.textContent =
+        "Tu as terminé toutes les cartes prévues pour cette session.";
 }
+
+
+// ==============================
+// DESSIN
+// ==============================
+
+const ctx =
+    drawingCanvas.getContext(
+        "2d"
+    );
+
+let isDrawing =
+    false;
+
+
+function getCanvasPosition(event) {
+
+    const rect =
+        drawingCanvas.getBoundingClientRect();
+
+    return {
+        x:
+            (event.clientX -
+                rect.left) *
+            (drawingCanvas.width /
+                rect.width),
+
+        y:
+            (event.clientY -
+                rect.top) *
+            (drawingCanvas.height /
+                rect.height)
+    };
+}
+
+
+drawingCanvas.addEventListener(
+    "pointerdown",
+    event => {
+
+        isDrawing =
+            true;
+
+        const position =
+            getCanvasPosition(
+                event
+            );
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            position.x,
+            position.y
+        );
+    }
+);
+
+
+drawingCanvas.addEventListener(
+    "pointermove",
+    event => {
+
+        if (!isDrawing) {
+            return;
+        }
+
+        const position =
+            getCanvasPosition(
+                event
+            );
+
+        ctx.lineTo(
+            position.x,
+            position.y
+        );
+
+        ctx.stroke();
+    }
+);
+
+
+drawingCanvas.addEventListener(
+    "pointerup",
+    () => {
+
+        isDrawing =
+            false;
+    }
+);
+
+
+drawingCanvas.addEventListener(
+    "pointerleave",
+    () => {
+
+        isDrawing =
+            false;
+    }
+);
+
+
+function clearCanvas() {
+
+    ctx.clearRect(
+        0,
+        0,
+        drawingCanvas.width,
+        drawingCanvas.height
+    );
+}
+
+
+clearDrawingButton.addEventListener(
+    "click",
+    clearCanvas
+);
 
 
 // ==============================
@@ -2191,168 +1524,99 @@ document.addEventListener(
     event => {
 
         /*
-         * Les raccourcis clavier notent la carte
-         * avec les 4 boutons standards : ils ont
-         * un sens en mode flashcard et en mode
-         * dessin, mais pas en mode écriture (qui
-         * a son propre flux de validation).
+         * Entrée dans le champ d'écriture :
+         * afficher la réponse.
          */
 
         if (
-            currentEffectiveMode === "writing"
-        ) {
-
-            return;
-
-        }
-
-
-        if (
-            event.key === " " &&
-            !event.target.matches(
-                "input, textarea"
-            )
+            event.key === "Enter" &&
+            document.activeElement ===
+                answerInput
         ) {
 
             event.preventDefault();
 
-            showAnswer();
+            if (
+                !showAnswerButton.disabled
+            ) {
+                showAnswer();
+            }
 
+            return;
         }
 
+        /*
+         * Raccourcis uniquement lorsque
+         * les 4 boutons sont affichés.
+         */
+
+        if (
+            ratingArea.classList.contains(
+                "hidden"
+            )
+        ) {
+            return;
+        }
 
         if (
             event.key === "1"
         ) {
+            const button =
+                ratingArea.querySelector(
+                    '[data-rating="again"]'
+                );
 
-            rateCard(
-                "again"
-            );
-
+            if (button) {
+                button.click();
+            }
         }
-
 
         if (
             event.key === "2"
         ) {
+            const button =
+                ratingArea.querySelector(
+                    '[data-rating="hard"]'
+                );
 
-            rateCard(
-                "hard"
-            );
-
+            if (button) {
+                button.click();
+            }
         }
-
 
         if (
             event.key === "3"
         ) {
+            const button =
+                ratingArea.querySelector(
+                    '[data-rating="good"]'
+                );
 
-            rateCard(
-                "good"
-            );
-
+            if (button) {
+                button.click();
+            }
         }
-
 
         if (
             event.key === "4"
         ) {
+            const button =
+                ratingArea.querySelector(
+                    '[data-rating="easy"]'
+                );
 
-            rateCard(
-                "easy"
-            );
-
+            if (button) {
+                button.click();
+            }
         }
-
     }
 );
-
-
-// ==============================
-// BOUTONS PRINCIPAUX
-// ==============================
-
-showAnswerButton.addEventListener(
-    "click",
-    showAnswer
-);
-
-
-skipButton.addEventListener(
-    "click",
-    skipCard
-);
-
-
-// ==============================
-// BOUTON ANNULER
-// ==============================
-
-if (undoButton) {
-
-    undoButton.addEventListener(
-        "click",
-        undoLastRating
-    );
-
-}
-
-
-// ==============================
-// BOUTON EFFACER DESSIN
-// ==============================
-
-if (clearDrawingButton) {
-
-    clearDrawingButton.addEventListener(
-        "click",
-        clearDrawing
-    );
-
-}
-
-
-// ==============================
-// ÉVÉNEMENTS DU CANVAS
-// ==============================
-
-if (drawingCanvas) {
-
-    drawingCanvas.addEventListener(
-        "pointerdown",
-        startDrawing
-    );
-
-
-    drawingCanvas.addEventListener(
-        "pointermove",
-        draw
-    );
-
-
-    drawingCanvas.addEventListener(
-        "pointerup",
-        stopDrawing
-    );
-
-
-    drawingCanvas.addEventListener(
-        "pointercancel",
-        stopDrawing
-    );
-
-}
 
 
 // ==============================
 // INITIALISATION
 // ==============================
 
-queue =
-    buildQueue();
-
-
 restoreRatingButtons();
-
 
 displayCard();
