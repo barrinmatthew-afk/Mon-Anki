@@ -2,543 +2,812 @@
 <html lang="fr">
 
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>Mon Anki</title>
+
 
     <style>
 
         body {
+
             font-family: Arial, sans-serif;
+
             max-width: 900px;
+
             margin: 40px auto;
+
             padding: 0 20px;
+
             color: #222;
+
         }
+
 
         h1 {
+
             margin-bottom: 5px;
+
         }
+
 
         .subtitle {
+
             color: #666;
+
             margin-bottom: 30px;
+
         }
+
 
         .deck {
+
             border: 1px solid #ccc;
+
             border-radius: 10px;
+
             padding: 20px;
+
             margin-bottom: 15px;
+
         }
+
 
         .deck-group {
+
             border: 1px solid #ddd;
+
             border-radius: 10px;
+
             padding: 15px;
+
             margin-bottom: 15px;
+
             background: #fafafa;
+
         }
+
 
         .deck-group-header {
+
             display: flex;
+
             justify-content: space-between;
+
             align-items: baseline;
+
             padding: 0 5px 10px 5px;
+
         }
+
 
         .deck-group-name {
+
             font-size: 20px;
+
             font-weight: bold;
+
         }
+
 
         .deck-group-due {
+
             color: #666;
+
             font-size: 14px;
+
         }
+
 
         .deck-group .deck {
+
             margin-bottom: 10px;
+
         }
+
 
         .deck-group .deck:last-child {
+
             margin-bottom: 0;
+
         }
+
 
         .deck-header {
+
             display: flex;
+
             justify-content: space-between;
+
             align-items: center;
+
             gap: 20px;
+
         }
+
 
         .deck-name {
+
             font-size: 22px;
+
             font-weight: bold;
+
         }
+
 
         .deck-info {
+
             color: #666;
+
             margin-top: 8px;
+
         }
+
 
         .due-count {
+
             font-weight: bold;
+
             margin-top: 5px;
+
         }
+
 
         .nothing-due {
+
             color: #4b8a4b;
+
         }
+
 
         .deck-actions {
+
             display: flex;
+
             gap: 5px;
+
             flex-shrink: 0;
+
         }
+
 
         button {
+
             padding: 10px 16px;
+
             margin: 5px;
+
             cursor: pointer;
+
             border: 1px solid #ccc;
+
             border-radius: 6px;
+
             background: white;
+
         }
+
 
         button:hover {
+
             background: #f2f2f2;
+
         }
+
 
         button:disabled {
+
             cursor: not-allowed;
+
             opacity: 0.5;
+
         }
+
 
         .delete-button {
+
             background: #eee;
+
         }
+
 
         #create-deck-section {
+
             margin-top: 30px;
+
             padding: 20px;
+
             border: 1px solid #ddd;
+
             border-radius: 10px;
+
         }
+
 
         #new-deck-name {
+
             padding: 10px;
+
             font-size: 16px;
+
             width: 250px;
+
             border: 1px solid #ccc;
+
             border-radius: 6px;
+
         }
+
 
         .main-actions {
+
             margin-top: 30px;
+
         }
+
 
         #sync-section {
+
             margin-top: 30px;
+
             padding: 20px;
+
             border: 1px solid #ddd;
+
             border-radius: 10px;
+
         }
+
 
         #sync-section h2 {
+
             margin-top: 0;
+
         }
+
 
         .sync-subtitle {
+
             color: #666;
+
             margin-bottom: 15px;
+
         }
 
+
         .empty {
+
             color: #666;
+
         }
+
 
         /* =========================
            COMPTE
         ========================= */
 
         #account-section {
+
             margin-bottom: 30px;
+
             padding: 20px;
+
             border: 1px solid #ddd;
+
             border-radius: 10px;
+
         }
+
 
         #account-section h2 {
+
             margin-top: 0;
+
         }
+
 
         #user-info {
+
             color: #555;
+
             margin-top: 10px;
+
         }
 
+
         #logout-button {
+
             display: none;
+
         }
+
 
         /* =========================
            FORECAST
         ========================= */
 
         #forecast-section {
+
             margin-top: 35px;
+
             padding: 25px;
+
             border: 1px solid #ddd;
+
             border-radius: 10px;
+
         }
+
 
         #forecast-section h2 {
+
             margin-top: 0;
+
         }
+
 
         .forecast-subtitle {
+
             color: #666;
+
             margin-bottom: 25px;
+
         }
+
 
         #forecast-chart {
+
             display: flex;
+
             align-items: flex-end;
+
             gap: 8px;
+
             height: 220px;
+
             padding: 20px 10px 0;
+
             border-bottom: 1px solid #ccc;
+
             overflow-x: auto;
+
         }
+
 
         .forecast-column {
+
             min-width: 28px;
+
             flex: 1;
+
             height: 100%;
+
             display: flex;
+
             flex-direction: column;
+
             justify-content: flex-end;
+
             align-items: center;
+
         }
+
 
         .forecast-bar-container {
+
             height: 180px;
+
             width: 100%;
+
             display: flex;
+
             align-items: flex-end;
+
             justify-content: center;
+
         }
+
 
         .forecast-bar {
+
             width: 22px;
+
             min-height: 2px;
+
             background: #555;
+
             border-radius: 4px 4px 0 0;
+
             transition: height 0.2s ease;
+
         }
+
 
         .forecast-number {
+
             font-size: 12px;
+
             color: #555;
+
             margin-bottom: 4px;
+
             min-height: 15px;
+
         }
+
 
         .forecast-hour {
+
             font-size: 12px;
+
             color: #666;
+
             margin-top: 8px;
+
             white-space: nowrap;
+
         }
 
+
         .forecast-empty {
+
             color: #666;
+
             text-align: center;
+
             padding: 30px 0;
+
         }
 
     </style>
 
 </head>
 
+
 <body>
 
-    <h1>Mon Anki</h1>
 
-    <p class="subtitle">
-        Choisis un deck à étudier.
+<h1>
+    Mon Anki
+</h1>
+
+
+<p class="subtitle">
+    Choisis un deck à étudier.
+</p>
+
+
+
+<!-- =========================
+     COMPTE
+========================= -->
+
+<div id="account-section">
+
+    <h2>
+        Mon compte
+    </h2>
+
+
+    <button id="login-button">
+
+        🔐 Se connecter avec Google
+
+    </button>
+
+
+    <button id="logout-button">
+
+        🚪 Se déconnecter
+
+    </button>
+
+
+    <div id="user-info">
+
+        Non connecté.
+
+    </div>
+
+</div>
+
+
+
+<div id="decks-container"></div>
+
+
+
+<div id="forecast-section">
+
+    <h2>
+        Cartes à venir
+    </h2>
+
+
+    <p class="forecast-subtitle">
+
+        Cartes qui deviendront disponibles au cours
+        des prochaines heures.
+
     </p>
 
 
-    <!-- =========================
-         COMPTE
-    ========================= -->
+    <div id="forecast-chart"></div>
 
-    <div id="account-section">
+</div>
 
-        <h2>Mon compte</h2>
 
-        <button id="login-button">
-            🔐 Se connecter avec Google
+
+<div id="create-deck-section">
+
+    <h2>
+        Créer un deck
+    </h2>
+
+
+    <input
+        type="text"
+        id="new-deck-name"
+        placeholder="Nom du deck (ex : Néerlandais::Verbes pour un sous-deck)"
+    >
+
+
+    <button id="create-deck">
+
+        Créer
+
+    </button>
+
+
+    <p class="forecast-subtitle">
+
+        Utilise "::" dans le nom pour créer un sous-deck,
+        par exemple "Néerlandais::Verbes".
+
+    </p>
+
+</div>
+
+
+
+<div class="main-actions">
+
+    <a href="import.html">
+
+        <button>
+            Importer du vocabulaire
         </button>
 
-        <button id="logout-button">
-            🚪 Se déconnecter
-        </button>
+    </a>
 
-        <div id="user-info">
-            Non connecté.
-        </div>
+</div>
 
-    </div>
 
 
-    <div id="decks-container"></div>
+<div id="sync-section">
 
+    <h2>
+        Synchroniser entre appareils
+    </h2>
 
-    <div id="forecast-section">
 
-        <h2>Cartes à venir</h2>
+    <p class="sync-subtitle">
 
-        <p class="forecast-subtitle">
-            Cartes qui deviendront disponibles au cours des prochaines heures.
-        </p>
+        Tes decks sont maintenant synchronisés avec ton
+        compte Google lorsque tu es connecté.
 
-        <div id="forecast-chart"></div>
+        Tu peux également utiliser l'exportation et
+        l'importation manuelles comme sauvegarde.
 
-    </div>
+    </p>
 
 
-    <div id="create-deck-section">
+    <button id="export-button">
 
-        <h2>Créer un deck</h2>
+        💾 Exporter mes decks
 
-        <input
-            type="text"
-            id="new-deck-name"
-            placeholder="Nom du deck (ex : Néerlandais::Verbes pour un sous-deck)"
-        >
+    </button>
 
-        <button id="create-deck">
-            Créer
-        </button>
 
-        <p class="forecast-subtitle">
-            Utilise "::" dans le nom pour créer un sous-deck, par exemple "Néerlandais::Verbes".
-        </p>
+    <button id="import-trigger-button">
 
-    </div>
+        📂 Importer une sauvegarde
 
+    </button>
 
-    <div class="main-actions">
 
-        <a href="import.html">
-            <button>
-                Importer du vocabulaire
-            </button>
-        </a>
+    <input
+        id="import-file-input"
+        type="file"
+        accept="application/json"
+        style="display:none"
+    >
 
-    </div>
 
+    <p
+        id="sync-status"
+        class="sync-subtitle"
+    ></p>
 
-    <div id="sync-section">
+</div>
 
-        <h2>Synchroniser entre appareils</h2>
 
-        <p class="sync-subtitle">
-            Tout est stocké uniquement sur cet appareil. Pour retrouver tes decks
-            sur ton téléphone ou ton PC, exporte un fichier de sauvegarde ici,
-            puis importe-le sur l'autre appareil.
-        </p>
 
-        <button id="export-button">
-            💾 Exporter mes decks
-        </button>
+<!-- =========================
+     FIREBASE
+========================= -->
 
-        <button id="import-trigger-button">
-            📂 Importer une sauvegarde
-        </button>
+<script type="module">
 
-        <input
-            id="import-file-input"
-            type="file"
-            accept="application/json"
-            style="display:none"
-        >
+    import {
 
-        <p id="sync-status" class="sync-subtitle"></p>
+        loginWithGoogle,
+        logout,
+        waitForAuth,
+        syncLocalDecksWithCloud
 
-    </div>
+    } from "./JS/firebase.js";
 
 
-    <!-- =========================
-         FIREBASE AUTHENTICATION
-    ========================= -->
+    // ==============================
+    // ELEMENTS
+    // ==============================
 
-    <script type="module">
+    const loginButton =
+        document.getElementById("login-button");
 
-        import {
-            initializeApp
-        } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
 
-        import {
-            getAuth,
-            GoogleAuthProvider,
-            signInWithPopup,
-            signOut,
-            onAuthStateChanged
-        } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+    const logoutButton =
+        document.getElementById("logout-button");
 
 
-        /* =========================
-           CONFIGURATION FIREBASE
-        ========================= */
+    const userInfo =
+        document.getElementById("user-info");
 
-        const firebaseConfig = {
 
-            apiKey: "AIzaSyDN5sEmYBBwAvJuE_03Pv59cPcdVMpVM54",
+    const syncStatus =
+        document.getElementById("sync-status");
 
-            authDomain: "mon-anki.firebaseapp.com",
 
-            projectId: "mon-anki",
+    // ==============================
+    // CONNEXION GOOGLE
+    // ==============================
 
-            storageBucket: "mon-anki.firebasestorage.app",
+    loginButton.addEventListener(
+        "click",
+        async () => {
 
-            messagingSenderId: "221401653253",
+            try {
 
-            appId: "1:221401653253:web:fe40dc3753fa880020fc6c"
+                await loginWithGoogle();
 
-        };
+                /*
+                 * La page est rechargée afin de lancer
+                 * une nouvelle synchronisation complète.
+                 */
 
+                window.location.reload();
 
-        /* =========================
-           INITIALISATION FIREBASE
-        ========================= */
+            } catch (error) {
 
-        const app = initializeApp(firebaseConfig);
+                console.error(
+                    "Erreur de connexion :",
+                    error
+                );
 
-        const auth = getAuth(app);
 
-        const provider = new GoogleAuthProvider();
-
-
-        /* =========================
-           ELEMENTS HTML
-        ========================= */
-
-        const loginButton =
-            document.getElementById("login-button");
-
-        const logoutButton =
-            document.getElementById("logout-button");
-
-        const userInfo =
-            document.getElementById("user-info");
-
-
-        /* =========================
-           CONNEXION GOOGLE
-        ========================= */
-
-        loginButton.addEventListener(
-            "click",
-            async () => {
-
-                try {
-
-                    await signInWithPopup(
-                        auth,
-                        provider
-                    );
-
-                } catch (error) {
-
-                    console.error(
-                        "Erreur de connexion :",
-                        error
-                    );
-
-                    alert(
-                        "Impossible de se connecter avec Google."
-                    );
-
-                }
+                alert(
+                    "Impossible de se connecter avec Google."
+                );
 
             }
-        );
+
+        }
+    );
 
 
-        /* =========================
-           DECONNEXION
-        ========================= */
+    // ==============================
+    // DECONNEXION
+    // ==============================
 
-        logoutButton.addEventListener(
-            "click",
-            async () => {
+    logoutButton.addEventListener(
+        "click",
+        async () => {
 
-                try {
+            try {
 
-                    await signOut(auth);
+                await logout();
 
-                } catch (error) {
+                window.location.reload();
 
-                    console.error(
-                        "Erreur de déconnexion :",
-                        error
-                    );
+            } catch (error) {
 
-                }
-
-            }
-        );
-
-
-        /* =========================
-           ETAT DE CONNEXION
-        ========================= */
-
-        onAuthStateChanged(
-            auth,
-            user => {
-
-                if (user) {
-
-                    loginButton.style.display = "none";
-
-                    logoutButton.style.display = "inline-block";
-
-                    userInfo.textContent =
-                        `Connecté avec ${user.email}`;
-
-                    console.log(
-                        "Utilisateur connecté :",
-                        user.uid
-                    );
-
-                } else {
-
-                    loginButton.style.display = "inline-block";
-
-                    logoutButton.style.display = "none";
-
-                    userInfo.textContent =
-                        "Non connecté.";
-
-                }
+                console.error(
+                    "Erreur de déconnexion :",
+                    error
+                );
 
             }
-        );
 
-    </script>
+        }
+    );
 
 
-    <!-- =========================
-         MON ANKI
-    ========================= -->
+    // ==============================
+    // INITIALISATION
+    // ==============================
 
-    <script src="JS/script.js"></script>
+    const user =
+        await waitForAuth();
+
+
+    if (user) {
+
+        loginButton.style.display =
+            "none";
+
+
+        logoutButton.style.display =
+            "inline-block";
+
+
+        userInfo.textContent =
+            `Connecté avec ${user.email}`;
+
+
+        syncStatus.textContent =
+            "Synchronisation avec Firestore...";
+
+
+    } else {
+
+        loginButton.style.display =
+            "inline-block";
+
+
+        logoutButton.style.display =
+            "none";
+
+
+        userInfo.textContent =
+            "Non connecté.";
+
+
+        syncStatus.textContent =
+            "Mode local : connecte-toi avec Google pour synchroniser tes decks.";
+
+    }
+
+
+    // ==============================
+    // SYNCHRONISATION
+    // ==============================
+
+    await syncLocalDecksWithCloud();
+
+
+    if (user) {
+
+        syncStatus.textContent =
+            "✓ Decks synchronisés avec Firestore.";
+
+    }
+
+
+    // ==============================
+    // CHARGER MON ANKI
+    // ==============================
+
+    await import("./JS/script.js");
+
+</script>
+
 
 </body>
 
