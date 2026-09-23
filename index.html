@@ -160,6 +160,30 @@
         }
 
         /* =========================
+           COMPTE
+        ========================= */
+
+        #account-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+        }
+
+        #account-section h2 {
+            margin-top: 0;
+        }
+
+        #user-info {
+            color: #555;
+            margin-top: 10px;
+        }
+
+        #logout-button {
+            display: none;
+        }
+
+        /* =========================
            FORECAST
         ========================= */
 
@@ -247,7 +271,32 @@
         Choisis un deck à étudier.
     </p>
 
+
+    <!-- =========================
+         COMPTE
+    ========================= -->
+
+    <div id="account-section">
+
+        <h2>Mon compte</h2>
+
+        <button id="login-button">
+            🔐 Se connecter avec Google
+        </button>
+
+        <button id="logout-button">
+            🚪 Se déconnecter
+        </button>
+
+        <div id="user-info">
+            Non connecté.
+        </div>
+
+    </div>
+
+
     <div id="decks-container"></div>
+
 
     <div id="forecast-section">
 
@@ -260,6 +309,7 @@
         <div id="forecast-chart"></div>
 
     </div>
+
 
     <div id="create-deck-section">
 
@@ -281,6 +331,7 @@
 
     </div>
 
+
     <div class="main-actions">
 
         <a href="import.html">
@@ -290,6 +341,7 @@
         </a>
 
     </div>
+
 
     <div id="sync-section">
 
@@ -319,6 +371,172 @@
         <p id="sync-status" class="sync-subtitle"></p>
 
     </div>
+
+
+    <!-- =========================
+         FIREBASE AUTHENTICATION
+    ========================= -->
+
+    <script type="module">
+
+        import {
+            initializeApp
+        } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+
+        import {
+            getAuth,
+            GoogleAuthProvider,
+            signInWithPopup,
+            signOut,
+            onAuthStateChanged
+        } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+
+
+        /* =========================
+           CONFIGURATION FIREBASE
+        ========================= */
+
+        const firebaseConfig = {
+
+            apiKey: "AIzaSyDN5sEmYBBwAvJuE_03Pv59cPcdVMpVM54",
+
+            authDomain: "mon-anki.firebaseapp.com",
+
+            projectId: "mon-anki",
+
+            storageBucket: "mon-anki.firebasestorage.app",
+
+            messagingSenderId: "221401653253",
+
+            appId: "1:221401653253:web:fe40dc3753fa880020fc6c"
+
+        };
+
+
+        /* =========================
+           INITIALISATION FIREBASE
+        ========================= */
+
+        const app = initializeApp(firebaseConfig);
+
+        const auth = getAuth(app);
+
+        const provider = new GoogleAuthProvider();
+
+
+        /* =========================
+           ELEMENTS HTML
+        ========================= */
+
+        const loginButton =
+            document.getElementById("login-button");
+
+        const logoutButton =
+            document.getElementById("logout-button");
+
+        const userInfo =
+            document.getElementById("user-info");
+
+
+        /* =========================
+           CONNEXION GOOGLE
+        ========================= */
+
+        loginButton.addEventListener(
+            "click",
+            async () => {
+
+                try {
+
+                    await signInWithPopup(
+                        auth,
+                        provider
+                    );
+
+                } catch (error) {
+
+                    console.error(
+                        "Erreur de connexion :",
+                        error
+                    );
+
+                    alert(
+                        "Impossible de se connecter avec Google."
+                    );
+
+                }
+
+            }
+        );
+
+
+        /* =========================
+           DECONNEXION
+        ========================= */
+
+        logoutButton.addEventListener(
+            "click",
+            async () => {
+
+                try {
+
+                    await signOut(auth);
+
+                } catch (error) {
+
+                    console.error(
+                        "Erreur de déconnexion :",
+                        error
+                    );
+
+                }
+
+            }
+        );
+
+
+        /* =========================
+           ETAT DE CONNEXION
+        ========================= */
+
+        onAuthStateChanged(
+            auth,
+            user => {
+
+                if (user) {
+
+                    loginButton.style.display = "none";
+
+                    logoutButton.style.display = "inline-block";
+
+                    userInfo.textContent =
+                        `Connecté avec ${user.email}`;
+
+                    console.log(
+                        "Utilisateur connecté :",
+                        user.uid
+                    );
+
+                } else {
+
+                    loginButton.style.display = "inline-block";
+
+                    logoutButton.style.display = "none";
+
+                    userInfo.textContent =
+                        "Non connecté.";
+
+                }
+
+            }
+        );
+
+    </script>
+
+
+    <!-- =========================
+         MON ANKI
+    ========================= -->
 
     <script src="JS/script.js"></script>
 
