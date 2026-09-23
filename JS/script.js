@@ -72,6 +72,104 @@ function getDueCards(deck) {
    AFFICHAGE DES DECKS
 ========================= */
 
+function renderDeckElement(deck, index, displayName) {
+
+    const dueCards = getDueCards(deck);
+    const dueCount = dueCards.length;
+
+    const deckElement = document.createElement("div");
+
+    deckElement.className = "deck";
+
+    const dueText = dueCount === 0
+        ? `<div class="due-count nothing-due">✓ Rien à réviser</div>`
+        : `<div class="due-count">${dueCount} carte${dueCount > 1 ? "s" : ""} à réviser</div>`;
+
+
+    deckElement.innerHTML = `
+        <div class="deck-header">
+
+            <div>
+
+                <div class="deck-name">
+                    ${escapeHTML(displayName)}
+                </div>
+
+                <div class="deck-info">
+                    ${deck.cards.length} carte${deck.cards.length > 1 ? "s" : ""}
+                </div>
+
+                ${dueText}
+
+            </div>
+
+
+            <div class="deck-actions">
+
+                <button
+                    class="study-button"
+                    data-index="${index}"
+                    ${dueCount === 0 ? "disabled" : ""}
+                >
+                    Étudier
+                </button>
+
+                <button
+                    class="manage-button"
+                    data-index="${index}"
+                >
+                    Gérer
+                </button>
+
+                <button
+                    class="delete-button"
+                    data-index="${index}"
+                >
+                    Supprimer
+                </button>
+
+            </div>
+
+        </div>
+    `;
+
+    return deckElement;
+
+}
+
+
+function groupDecksByPrefix(decks) {
+
+    const groups = new Map();
+
+    decks.forEach((deck, index) => {
+
+        const parts = deck.name.split("::");
+
+        const topName = parts[0];
+
+        if (!groups.has(topName)) {
+
+            groups.set(topName, []);
+
+        }
+
+        groups.get(topName).push({
+
+            deck,
+            index,
+            isSub: parts.length > 1,
+            subLabel: parts.slice(1).join("::")
+
+        });
+
+    });
+
+    return groups;
+
+}
+
+
 function displayDecks() {
 
     const container = document.getElementById("decks-container");
@@ -92,62 +190,67 @@ function displayDecks() {
     }
 
 
-    decks.forEach((deck, index) => {
+    const groups = groupDecksByPrefix(decks);
 
-        const dueCards = getDueCards(deck);
-        const dueCount = dueCards.length;
+    groups.forEach((entries, groupName) => {
 
-        const deckElement = document.createElement("div");
+        if (entries.length === 1 && !entries[0].isSub) {
 
-        deckElement.className = "deck";
+            /*
+             * Deck isolé, sans sous-deck :
+             * on l'affiche comme avant, sans groupe.
+             */
 
-        const dueText = dueCount === 0
-            ? `<div class="due-count nothing-due">✓ Rien à réviser</div>`
-            : `<div class="due-count">${dueCount} carte${dueCount > 1 ? "s" : ""} à réviser</div>`;
+            const { deck, index } = entries[0];
+
+            container.appendChild(
+                renderDeckElement(deck, index, deck.name)
+            );
+
+            return;
+
+        }
 
 
-        deckElement.innerHTML = `
-            <div class="deck-header">
+        /*
+         * Un ou plusieurs sous-decks partagent
+         * ce préfixe : on les regroupe visuellement.
+         */
 
-                <div>
+        const groupTotalDue = entries.reduce(
+            (total, entry) => total + getDueCards(entry.deck).length,
+            0
+        );
 
-                    <div class="deck-name">
-                        ${escapeHTML(deck.name)}
-                    </div>
+        const groupElement = document.createElement("div");
 
-                    <div class="deck-info">
-                        ${deck.cards.length} carte${deck.cards.length > 1 ? "s" : ""}
-                    </div>
+        groupElement.className = "deck-group";
 
-                    ${dueText}
-
+        groupElement.innerHTML = `
+            <div class="deck-group-header">
+                <div class="deck-group-name">${escapeHTML(groupName)}</div>
+                <div class="deck-group-due">
+                    ${groupTotalDue === 0
+                        ? "✓ Rien à réviser"
+                        : `${groupTotalDue} carte${groupTotalDue > 1 ? "s" : ""} à réviser au total`}
                 </div>
-
-
-                <div class="deck-actions">
-
-                    <button
-                        class="study-button"
-                        data-index="${index}"
-                        ${dueCount === 0 ? "disabled" : ""}
-                    >
-                        Étudier
-                    </button>
-
-                    <button
-                        class="delete-button"
-                        data-index="${index}"
-                    >
-                        Supprimer
-                    </button>
-
-                </div>
-
             </div>
         `;
 
+        entries.forEach(entry => {
 
-        container.appendChild(deckElement);
+            const displayName = entry.isSub
+                ? entry.subLabel
+                : entry.deck.name;
+
+            groupElement.appendChild(
+                renderDeckElement(entry.deck, entry.index, displayName)
+            );
+
+        });
+
+        container.appendChild(groupElement);
+
     });
 
 
@@ -164,6 +267,24 @@ function displayDecks() {
             localStorage.setItem("selectedDeck", decks[index].name);
 
             window.location.href = "study.html";
+        });
+
+    });
+
+
+    /* Boutons Gérer */
+
+    document.querySelectorAll(".manage-button").forEach(button => {
+
+        button.addEventListener("click", () => {
+
+            const index = Number(button.dataset.index);
+
+            const decks = loadDecks();
+
+            localStorage.setItem("manageDeckName", decks[index].name);
+
+            window.location.href = "deck.html";
         });
 
     });
@@ -448,6 +569,168 @@ function escapeHTML(text) {
 
 
 /* =========================
+   SYNCHRONISATION (SAUVEGARDE MANUELLE)
+========================= */
+
+function exportDecks() {
+
+    const decks = loadDecks();
+
+    const blob = new Blob(
+        [JSON.stringify(decks, null, 2)],
+        { type: "application/json" }
+    );
+
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+
+    link.href = url;
+
+    const date = new Date()
+        .toISOString()
+        .slice(0, 10);
+
+    link.download = `mon-anki-sauvegarde-${date}.json`;
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    link.remove();
+
+    URL.revokeObjectURL(url);
+
+}
+
+
+function mergeImportedDecks(importedDecks, existingDecks) {
+
+    let addedDecks = 0;
+
+    let addedCards = 0;
+
+    importedDecks.forEach(importedDeck => {
+
+        const existingDeck = existingDecks.find(
+            deck => deck.name === importedDeck.name
+        );
+
+        if (!existingDeck) {
+
+            existingDecks.push(importedDeck);
+
+            addedDecks++;
+
+            addedCards += importedDeck.cards.length;
+
+            return;
+
+        }
+
+
+        importedDeck.cards.forEach(importedCard => {
+
+            const alreadyExists = existingDeck.cards.some(
+                card =>
+                    card.word === importedCard.word &&
+                    card.answer === importedCard.answer &&
+                    card.mode === importedCard.mode
+            );
+
+            if (!alreadyExists) {
+
+                existingDeck.cards.push(importedCard);
+
+                addedCards++;
+
+            }
+
+        });
+
+    });
+
+    return { addedDecks, addedCards };
+
+}
+
+
+function importDecksFromFile(file) {
+
+    const statusElement =
+        document.getElementById("sync-status");
+
+    const reader = new FileReader();
+
+
+    reader.onload = () => {
+
+        let importedDecks;
+
+        try {
+
+            importedDecks = JSON.parse(reader.result);
+
+        } catch (error) {
+
+            console.error(error);
+
+            if (statusElement) {
+
+                statusElement.textContent =
+                    "Ce fichier n'est pas une sauvegarde valide.";
+
+            }
+
+            return;
+
+        }
+
+
+        if (!Array.isArray(importedDecks)) {
+
+            if (statusElement) {
+
+                statusElement.textContent =
+                    "Ce fichier n'est pas une sauvegarde valide.";
+
+            }
+
+            return;
+
+        }
+
+
+        const existingDecks = loadDecks();
+
+        const result = mergeImportedDecks(
+            importedDecks,
+            existingDecks
+        );
+
+        saveDecks(existingDecks);
+
+        displayDecks();
+
+        displayForecast();
+
+
+        if (statusElement) {
+
+            statusElement.textContent =
+                `Importé : ${result.addedDecks} nouveau(x) deck(s), ${result.addedCards} nouvelle(s) carte(s).`;
+
+        }
+
+    };
+
+
+    reader.readAsText(file);
+
+}
+
+
+/* =========================
    INITIALISATION
 ========================= */
 
@@ -482,5 +765,53 @@ document.addEventListener("DOMContentLoaded", () => {
 
         }
     );
+
+
+    const exportButton =
+        document.getElementById("export-button");
+
+    if (exportButton) {
+
+        exportButton.addEventListener(
+            "click",
+            exportDecks
+        );
+
+    }
+
+
+    const importTriggerButton =
+        document.getElementById("import-trigger-button");
+
+    const importFileInput =
+        document.getElementById("import-file-input");
+
+    if (importTriggerButton && importFileInput) {
+
+        importTriggerButton.addEventListener(
+            "click",
+            () => importFileInput.click()
+        );
+
+
+        importFileInput.addEventListener(
+            "change",
+            () => {
+
+                const file = importFileInput.files[0];
+
+                if (file) {
+
+                    importDecksFromFile(file);
+
+                }
+
+
+                importFileInput.value = "";
+
+            }
+        );
+
+    }
 
 });

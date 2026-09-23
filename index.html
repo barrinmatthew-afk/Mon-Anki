@@ -33,6 +33,39 @@
             margin-bottom: 15px;
         }
 
+        .deck-group {
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: #fafafa;
+        }
+
+        .deck-group-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding: 0 5px 10px 5px;
+        }
+
+        .deck-group-name {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .deck-group-due {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .deck-group .deck {
+            margin-bottom: 10px;
+        }
+
+        .deck-group .deck:last-child {
+            margin-bottom: 0;
+        }
+
         .deck-header {
             display: flex;
             justify-content: space-between;
@@ -104,6 +137,22 @@
 
         .main-actions {
             margin-top: 30px;
+        }
+
+        #sync-section {
+            margin-top: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+        }
+
+        #sync-section h2 {
+            margin-top: 0;
+        }
+
+        .sync-subtitle {
+            color: #666;
+            margin-bottom: 15px;
         }
 
         .empty {
@@ -219,12 +268,16 @@
         <input
             type="text"
             id="new-deck-name"
-            placeholder="Nom du deck"
+            placeholder="Nom du deck (ex : Néerlandais::Verbes pour un sous-deck)"
         >
 
         <button id="create-deck">
             Créer
         </button>
+
+        <p class="forecast-subtitle">
+            Utilise "::" dans le nom pour créer un sous-deck, par exemple "Néerlandais::Verbes".
+        </p>
 
     </div>
 
@@ -235,6 +288,35 @@
                 Importer du vocabulaire
             </button>
         </a>
+
+    </div>
+
+    <div id="sync-section">
+
+        <h2>Synchroniser entre appareils</h2>
+
+        <p class="sync-subtitle">
+            Tout est stocké uniquement sur cet appareil. Pour retrouver tes decks
+            sur ton téléphone ou ton PC, exporte un fichier de sauvegarde ici,
+            puis importe-le sur l'autre appareil.
+        </p>
+
+        <button id="export-button">
+            💾 Exporter mes decks
+        </button>
+
+        <button id="import-trigger-button">
+            📂 Importer une sauvegarde
+        </button>
+
+        <input
+            id="import-file-input"
+            type="file"
+            accept="application/json"
+            style="display:none"
+        >
+
+        <p id="sync-status" class="sync-subtitle"></p>
 
     </div>
 

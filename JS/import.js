@@ -4,9 +4,17 @@ const deckSelect = document.getElementById("deck-select");
 const cardsTable = document.getElementById("cards-table");
 const imageInput = document.getElementById("image-input");
 const ocrButton = document.getElementById("ocr-button");
-const addRowButton = document.getElementById("add-row");
 const createCardsButton = document.getElementById("create-cards");
 const statusElement = document.getElementById("status");
+
+
+/*
+ * Ligne fixe, toujours en bas du tableau,
+ * qui sert à ajouter une nouvelle carte
+ * juste à la suite de la dernière ajoutée.
+ */
+
+let addRowControlRow = null;
 
 
 
@@ -58,33 +66,231 @@ function populateDeckSelect() {
 
 
 
-function createDrawingCanvas() {
+function resizeImageToDataURL(
+    file,
+    maxDimension,
+    callback
+) {
+
+    const reader = new FileReader();
+
+
+    reader.onload = function () {
+
+        const image = new Image();
+
+
+        image.onload = function () {
+
+            let width = image.width;
+
+            let height = image.height;
+
+
+            if (
+                width > maxDimension ||
+                height > maxDimension
+            ) {
+
+                if (width > height) {
+
+                    height =
+                        Math.round(
+                            height * (maxDimension / width)
+                        );
+
+                    width = maxDimension;
+
+                } else {
+
+                    width =
+                        Math.round(
+                            width * (maxDimension / height)
+                        );
+
+                    height = maxDimension;
+
+                }
+
+            }
+
+
+            const canvas =
+                document.createElement("canvas");
+
+            canvas.width = width;
+
+            canvas.height = height;
+
+
+            const context =
+                canvas.getContext("2d");
+
+            /*
+             * Fond blanc : évite un fond
+             * transparent qui deviendrait noir
+             * une fois converti en JPEG.
+             */
+
+            context.fillStyle = "white";
+
+            context.fillRect(
+                0,
+                0,
+                width,
+                height
+            );
+
+            context.drawImage(
+                image,
+                0,
+                0,
+                width,
+                height
+            );
+
+
+            callback(
+                canvas.toDataURL(
+                    "image/jpeg",
+                    0.85
+                )
+            );
+
+        };
+
+
+        image.src = reader.result;
+
+    };
+
+
+    reader.readAsDataURL(file);
+
+}
+
+
+
+function createDrawingAnswer() {
 
     const wrapper = document.createElement("div");
 
     wrapper.className = "drawing-answer";
 
 
-    const canvas = document.createElement("canvas");
+    /*
+     * Deux façons de fournir le dessin :
+     * - le dessiner ici à la souris/au doigt
+     * - importer une photo/scan d'un dessin
+     *   déjà fait sur papier
+     */
+
+    const modeButtons =
+        document.createElement("div");
+
+    modeButtons.className =
+        "drawing-mode-buttons";
+
+
+    const drawModeButton =
+        document.createElement("button");
+
+    drawModeButton.type = "button";
+
+    drawModeButton.textContent =
+        "✏️ Dessiner ici";
+
+    drawModeButton.className =
+        "drawing-mode-button selected";
+
+
+    const uploadModeButton =
+        document.createElement("button");
+
+    uploadModeButton.type = "button";
+
+    uploadModeButton.textContent =
+        "📁 Importer une image";
+
+    uploadModeButton.className =
+        "drawing-mode-button";
+
+
+    modeButtons.appendChild(drawModeButton);
+
+    modeButtons.appendChild(uploadModeButton);
+
+
+    /* --- Zone dessin à la souris --- */
+
+    const canvasArea =
+        document.createElement("div");
+
+    canvasArea.className =
+        "canvas-draw-area";
+
+
+    const canvas =
+        document.createElement("canvas");
 
     canvas.width = 700;
 
     canvas.height = 360;
 
 
-    const clearButton = document.createElement("button");
+    const clearButton =
+        document.createElement("button");
 
     clearButton.type = "button";
 
     clearButton.textContent = "Effacer";
 
 
-    wrapper.appendChild(canvas);
+    canvasArea.appendChild(canvas);
 
-    wrapper.appendChild(clearButton);
+    canvasArea.appendChild(clearButton);
 
 
-    const context = canvas.getContext("2d");
+    /* --- Zone import d'image --- */
+
+    const uploadArea =
+        document.createElement("div");
+
+    uploadArea.className =
+        "upload-draw-area hidden";
+
+
+    const fileInput =
+        document.createElement("input");
+
+    fileInput.type = "file";
+
+    fileInput.accept = "image/*";
+
+
+    const preview =
+        document.createElement("img");
+
+    preview.className =
+        "drawing-preview hidden";
+
+
+    uploadArea.appendChild(fileInput);
+
+    uploadArea.appendChild(preview);
+
+
+    wrapper.appendChild(modeButtons);
+
+    wrapper.appendChild(canvasArea);
+
+    wrapper.appendChild(uploadArea);
+
+
+    /* --- Logique dessin à la souris --- */
+
+    const context =
+        canvas.getContext("2d");
 
 
     context.lineWidth = 4;
@@ -97,6 +303,10 @@ function createDrawingCanvas() {
 
 
     let drawing = false;
+
+    let currentSubMode = "draw";
+
+    let uploadedDataURL = "";
 
 
     function getPosition(event) {
@@ -208,7 +418,92 @@ function createDrawingCanvas() {
     );
 
 
+    /* --- Bascule entre les deux sous-modes --- */
+
+    function selectDrawMode() {
+
+        currentSubMode = "draw";
+
+        drawModeButton.classList.add("selected");
+
+        uploadModeButton.classList.remove("selected");
+
+        canvasArea.classList.remove("hidden");
+
+        uploadArea.classList.add("hidden");
+
+    }
+
+
+    function selectUploadMode() {
+
+        currentSubMode = "upload";
+
+        uploadModeButton.classList.add("selected");
+
+        drawModeButton.classList.remove("selected");
+
+        uploadArea.classList.remove("hidden");
+
+        canvasArea.classList.add("hidden");
+
+    }
+
+
+    drawModeButton.addEventListener(
+        "click",
+        selectDrawMode
+    );
+
+
+    uploadModeButton.addEventListener(
+        "click",
+        selectUploadMode
+    );
+
+
+    /* --- Import d'une image existante --- */
+
+    fileInput.addEventListener(
+        "change",
+        () => {
+
+            const file =
+                fileInput.files[0];
+
+            if (!file) {
+
+                return;
+
+            }
+
+
+            resizeImageToDataURL(
+                file,
+                1000,
+                dataURL => {
+
+                    uploadedDataURL = dataURL;
+
+                    preview.src = dataURL;
+
+                    preview.classList.remove("hidden");
+
+                }
+            );
+
+        }
+    );
+
+
     wrapper.getDrawingData = function () {
+
+        if (currentSubMode === "upload") {
+
+            return uploadedDataURL;
+
+        }
+
 
         return canvas.toDataURL("image/png");
 
@@ -216,6 +511,49 @@ function createDrawingCanvas() {
 
 
     return wrapper;
+
+}
+
+
+
+function createAddRowControlRow() {
+
+    const row = document.createElement("tr");
+
+    row.id = "add-row-control";
+
+
+    const cell = document.createElement("td");
+
+    cell.colSpan = 5;
+
+    cell.className = "add-row-cell";
+
+
+    const button = document.createElement("button");
+
+    button.type = "button";
+
+    button.textContent =
+        "➕ Ajouter une ligne";
+
+
+    button.addEventListener(
+        "click",
+        () => {
+
+            addRow();
+
+        }
+    );
+
+
+    cell.appendChild(button);
+
+    row.appendChild(cell);
+
+
+    return row;
 
 }
 
@@ -257,15 +595,45 @@ function addRow(
 
     const transferCell = document.createElement("td");
 
-    const transferInput = document.createElement("input");
+    transferCell.className = "transfer-cell";
 
-    transferInput.type = "text";
+    const transferButton = document.createElement("button");
 
-    transferInput.className = "transfer-input";
+    transferButton.type = "button";
 
-    transferInput.placeholder = "Optionnel";
+    transferButton.className = "transfer-button";
 
-    transferCell.appendChild(transferInput);
+    transferButton.title = "Échanger la question et la réponse";
+
+    transferButton.textContent = "⇄";
+
+
+    transferButton.addEventListener(
+        "click",
+        () => {
+
+            const answerInputElement =
+                answerCell.querySelector(".answer-input");
+
+            if (!answerInputElement) {
+
+                return;
+
+            }
+
+            const questionValue = questionInput.value;
+
+            const answerValue = answerInputElement.value;
+
+            questionInput.value = answerValue;
+
+            answerInputElement.value = questionValue;
+
+        }
+    );
+
+
+    transferCell.appendChild(transferButton);
 
 
 
@@ -361,7 +729,7 @@ function addRow(
         answerCell.innerHTML = "";
 
 
-        drawingWrapper = createDrawingCanvas();
+        drawingWrapper = createDrawingAnswer();
 
 
         answerCell.appendChild(drawingWrapper);
@@ -384,8 +752,16 @@ function addRow(
 
             }
 
+
+            transferButton.disabled =
+                typeSelect.value === "drawing";
+
         }
     );
+
+
+    transferButton.disabled =
+        typeSelect.value === "drawing";
 
 
 
@@ -396,7 +772,7 @@ function addRow(
             row.remove();
 
 
-            if (cardsTable.children.length === 0) {
+            if (getRows().length === 0) {
 
                 addEmptyMessage();
 
@@ -418,7 +794,18 @@ function addRow(
     row.appendChild(deleteCell);
 
 
-    cardsTable.appendChild(row);
+    if (
+        addRowControlRow &&
+        addRowControlRow.parentNode === cardsTable
+    ) {
+
+        cardsTable.insertBefore(row, addRowControlRow);
+
+    } else {
+
+        cardsTable.appendChild(row);
+
+    }
 
 
     if (cardMode === "drawing") {
@@ -453,7 +840,18 @@ function addEmptyMessage() {
 
     row.appendChild(cell);
 
-    cardsTable.appendChild(row);
+    if (
+        addRowControlRow &&
+        addRowControlRow.parentNode === cardsTable
+    ) {
+
+        cardsTable.insertBefore(row, addRowControlRow);
+
+    } else {
+
+        cardsTable.appendChild(row);
+
+    }
 
 }
 
@@ -464,7 +862,9 @@ function getRows() {
     return Array.from(
         cardsTable.querySelectorAll("tr")
     ).filter(
-        row => row.id !== "empty-row"
+        row =>
+            row.id !== "empty-row" &&
+            row.id !== "add-row-control"
     );
 
 }
@@ -618,12 +1018,6 @@ function createCards() {
             );
 
 
-        const transferInput =
-            row.querySelector(
-                ".transfer-input"
-            );
-
-
         const typeSelect =
             row.querySelector(
                 ".type-select"
@@ -632,10 +1026,6 @@ function createCards() {
 
         const question =
             questionInput.value.trim();
-
-
-        const transfer =
-            transferInput.value.trim();
 
 
         const cardMode =
@@ -697,13 +1087,21 @@ function createCards() {
         }
 
 
+        if (
+            cardMode === "drawing" &&
+            !drawing
+        ) {
+
+            continue;
+
+        }
+
+
         newCards.push({
 
             word: question,
 
             answer: answer,
-
-            transfer: transfer,
 
             mode: cardMode,
 
@@ -754,18 +1152,9 @@ function createCards() {
 
     addEmptyMessage();
 
+    cardsTable.appendChild(addRowControlRow);
+
 }
-
-
-
-addRowButton.addEventListener(
-    "click",
-    () => {
-
-        addRow();
-
-    }
-);
 
 
 
@@ -815,3 +1204,8 @@ deckSelect.addEventListener(
 
 
 populateDeckSelect();
+
+
+addRowControlRow = createAddRowControlRow();
+
+cardsTable.appendChild(addRowControlRow);

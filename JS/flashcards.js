@@ -334,6 +334,47 @@ let currentDirection =
 
 
 /*
+ * Le "mode" choisi sur l'écran de préparation
+ * (flashcard / écriture / dessin) s'applique
+ * aux cartes texte. Mais une carte "dessin"
+ * n'a de sens qu'avec l'interface dessin, et
+ * une carte texte n'a pas d'interface dessin :
+ * currentEffectiveMode règle ce conflit
+ * carte par carte.
+ */
+
+let currentEffectiveMode =
+    "flashcard";
+
+
+function getEffectiveModeForCard(
+    card
+) {
+
+    if (
+        card.mode === "drawing"
+    ) {
+
+        return "drawing";
+
+    }
+
+
+    if (
+        mode === "drawing"
+    ) {
+
+        return "flashcard";
+
+    }
+
+
+    return mode;
+
+}
+
+
+/*
  * Garde une trace de la dernière
  * note donnée, pour pouvoir l'annuler.
  */
@@ -849,6 +890,12 @@ function displayCard() {
         queue[0];
 
 
+    currentEffectiveMode =
+        getEffectiveModeForCard(
+            currentCard
+        );
+
+
     const result =
         getQuestionAndAnswer(
             currentCard
@@ -909,7 +956,7 @@ function displayCard() {
      */
 
     if (
-        mode === "writing"
+        currentEffectiveMode === "writing"
     ) {
 
         writingArea.classList.remove(
@@ -931,7 +978,7 @@ function displayCard() {
      */
 
     if (
-        mode === "drawing"
+        currentEffectiveMode === "drawing"
     ) {
 
         if (!drawingArea) {
@@ -970,7 +1017,7 @@ function displayCard() {
      */
 
     if (
-        mode === "flashcard"
+        currentEffectiveMode === "flashcard"
     ) {
 
         writingArea.classList.add(
@@ -1021,7 +1068,7 @@ function showAnswer() {
      */
 
     if (
-        mode === "drawing"
+        currentEffectiveMode === "drawing"
     ) {
 
         answerElement.classList.add(
@@ -1061,7 +1108,7 @@ function showAnswer() {
      */
 
     if (
-        mode === "drawing" &&
+        currentEffectiveMode === "drawing" &&
         drawingCanvas
     ) {
 
@@ -1077,7 +1124,7 @@ function showAnswer() {
      */
 
     if (
-        mode === "writing"
+        currentEffectiveMode === "writing"
     ) {
 
         checkWritingAnswer();
@@ -2144,12 +2191,15 @@ document.addEventListener(
     event => {
 
         /*
-         * Les raccourcis ne sont actifs
-         * que pour le mode flashcard.
+         * Les raccourcis clavier notent la carte
+         * avec les 4 boutons standards : ils ont
+         * un sens en mode flashcard et en mode
+         * dessin, mais pas en mode écriture (qui
+         * a son propre flux de validation).
          */
 
         if (
-            mode !== "flashcard"
+            currentEffectiveMode === "writing"
         ) {
 
             return;
