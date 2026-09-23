@@ -1200,113 +1200,131 @@ function importDecksFromFile(file) {
    INITIALISATION
 ========================= */
 
-document.addEventListener(
-    "DOMContentLoaded",
-    () => {
+/*
+ * IMPORTANT :
+ *
+ * script.js est maintenant chargé avec
+ * import("./JS/script.js") après la synchronisation
+ * Firebase.
+ *
+ * À ce moment-là, DOMContentLoaded est déjà passé.
+ * Il ne faut donc plus attendre cet événement.
+ */
 
-        displayDecks();
-
-        displayForecast();
-
-
-        const createButton =
-            document.getElementById(
-                "create-deck"
-            );
-
-
-        createButton.addEventListener(
-            "click",
-            createDeck
-        );
+const createButton =
+    document.getElementById(
+        "create-deck"
+    );
 
 
-        const input =
-            document.getElementById(
-                "new-deck-name"
-            );
+if (createButton) {
+
+    createButton.addEventListener(
+        "click",
+        createDeck
+    );
+
+}
 
 
-        input.addEventListener(
-            "keydown",
-            event => {
+const input =
+    document.getElementById(
+        "new-deck-name"
+    );
 
-                if (
-                    event.key === "Enter"
-                ) {
 
-                    createDeck();
+if (input) {
 
-                }
+    input.addEventListener(
+        "keydown",
+        event => {
+
+            if (
+                event.key === "Enter"
+            ) {
+
+                createDeck();
 
             }
-        );
-
-
-        const exportButton =
-            document.getElementById(
-                "export-button"
-            );
-
-
-        if (exportButton) {
-
-            exportButton.addEventListener(
-                "click",
-                exportDecks
-            );
 
         }
+    );
+
+}
 
 
-        const importTriggerButton =
-            document.getElementById(
-                "import-trigger-button"
-            );
+const exportButton =
+    document.getElementById(
+        "export-button"
+    );
 
 
-        const importFileInput =
-            document.getElementById(
-                "import-file-input"
-            );
+if (exportButton) {
+
+    exportButton.addEventListener(
+        "click",
+        exportDecks
+    );
+
+}
 
 
-        if (
-            importTriggerButton &&
-            importFileInput
-        ) {
-
-            importTriggerButton.addEventListener(
-                "click",
-                () =>
-                    importFileInput.click()
-            );
+const importTriggerButton =
+    document.getElementById(
+        "import-trigger-button"
+    );
 
 
-            importFileInput.addEventListener(
-                "change",
-                () => {
-
-                    const file =
-                        importFileInput.files[0];
+const importFileInput =
+    document.getElementById(
+        "import-file-input"
+    );
 
 
-                    if (file) {
+if (
+    importTriggerButton &&
+    importFileInput
+) {
 
-                        importDecksFromFile(
-                            file
-                        );
+    importTriggerButton.addEventListener(
+        "click",
+        () =>
+            importFileInput.click()
+    );
 
-                    }
+
+    importFileInput.addEventListener(
+        "change",
+        () => {
+
+            const file =
+                importFileInput.files[0];
 
 
-                    importFileInput.value =
-                        "";
+            if (file) {
 
-                }
-            );
+                importDecksFromFile(
+                    file
+                );
+
+            }
+
+
+            importFileInput.value =
+                "";
 
         }
+    );
 
-    }
-);
+}
+
+
+/*
+ * On initialise l'affichage immédiatement,
+ * puisque le DOM existe déjà lorsque ce fichier
+ * est importé.
+ */
+
+displayDecks();
+
+displayForecast();
