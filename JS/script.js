@@ -46,12 +46,6 @@ function loadDecks() {
         );
 
 
-        /*
-         * Si Firebase est disponible,
-         * on envoie également les decks par défaut
-         * dans Firestore.
-         */
-
         if (window.saveDecksToCloud) {
 
             window.saveDecksToCloud(
@@ -93,19 +87,11 @@ function loadDecks() {
 
 function saveDecks(decks) {
 
-    /*
-     * Sauvegarde locale.
-     */
-
     localStorage.setItem(
         "decks",
         JSON.stringify(decks)
     );
 
-
-    /*
-     * Sauvegarde Firestore.
-     */
 
     if (window.saveDecksToCloud) {
 
@@ -288,6 +274,13 @@ function displayDecks() {
         );
 
 
+    if (!container) {
+
+        return;
+
+    }
+
+
     container.innerHTML = "";
 
 
@@ -322,11 +315,6 @@ function displayDecks() {
                 !entries[0].isSub
             ) {
 
-                /*
-                 * Deck isolé, sans sous-deck :
-                 * on l'affiche comme avant.
-                 */
-
                 const {
                     deck,
                     index
@@ -348,11 +336,6 @@ function displayDecks() {
 
             }
 
-
-            /*
-             * Un ou plusieurs sous-decks
-             * partagent ce préfixe.
-             */
 
             const groupTotalDue =
                 entries.reduce(
@@ -656,10 +639,6 @@ function getForecast() {
     const forecast = [];
 
 
-    /*
-     * On regarde les 24 prochaines heures.
-     */
-
     for (
         let i = 0;
         i < 24;
@@ -689,11 +668,6 @@ function getForecast() {
 
                         }
 
-
-                        /*
-                         * Une carte déjà due maintenant
-                         * n'est pas comptée dans le futur.
-                         */
 
                         if (
                             card.nextReview > start &&
@@ -745,11 +719,6 @@ function displayForecast() {
     const forecast =
         getForecast();
 
-
-    /*
-     * On regarde aussi s'il y a réellement
-     * quelque chose à afficher.
-     */
 
     const hasFutureCards =
         forecast.some(
@@ -1200,131 +1169,148 @@ function importDecksFromFile(file) {
    INITIALISATION
 ========================= */
 
-/*
- * IMPORTANT :
- *
- * script.js est maintenant chargé avec
- * import("./JS/script.js") après la synchronisation
- * Firebase.
- *
- * À ce moment-là, DOMContentLoaded est déjà passé.
- * Il ne faut donc plus attendre cet événement.
- */
+export function initializeApp() {
 
-const createButton =
-    document.getElementById(
-        "create-deck"
+    console.log(
+        "Mon Anki : initialisation..."
     );
 
 
-if (createButton) {
+    /* =========================
+       BOUTON CREER
+    ========================= */
 
-    createButton.addEventListener(
-        "click",
-        createDeck
-    );
-
-}
-
-
-const input =
-    document.getElementById(
-        "new-deck-name"
-    );
+    const createButton =
+        document.getElementById(
+            "create-deck"
+        );
 
 
-if (input) {
+    if (createButton) {
 
-    input.addEventListener(
-        "keydown",
-        event => {
+        createButton.addEventListener(
+            "click",
+            createDeck
+        );
 
-            if (
-                event.key === "Enter"
-            ) {
+    }
 
-                createDeck();
+
+    /* =========================
+       CHAMP NOM DECK
+    ========================= */
+
+    const input =
+        document.getElementById(
+            "new-deck-name"
+        );
+
+
+    if (input) {
+
+        input.addEventListener(
+            "keydown",
+            event => {
+
+                if (
+                    event.key === "Enter"
+                ) {
+
+                    createDeck();
+
+                }
 
             }
+        );
 
-        }
-    );
-
-}
+    }
 
 
-const exportButton =
-    document.getElementById(
-        "export-button"
-    );
+    /* =========================
+       EXPORT
+    ========================= */
+
+    const exportButton =
+        document.getElementById(
+            "export-button"
+        );
 
 
-if (exportButton) {
+    if (exportButton) {
 
-    exportButton.addEventListener(
-        "click",
-        exportDecks
-    );
+        exportButton.addEventListener(
+            "click",
+            exportDecks
+        );
 
-}
-
-
-const importTriggerButton =
-    document.getElementById(
-        "import-trigger-button"
-    );
+    }
 
 
-const importFileInput =
-    document.getElementById(
-        "import-file-input"
-    );
+    /* =========================
+       IMPORT
+    ========================= */
+
+    const importTriggerButton =
+        document.getElementById(
+            "import-trigger-button"
+        );
 
 
-if (
-    importTriggerButton &&
-    importFileInput
-) {
-
-    importTriggerButton.addEventListener(
-        "click",
-        () =>
-            importFileInput.click()
-    );
+    const importFileInput =
+        document.getElementById(
+            "import-file-input"
+        );
 
 
-    importFileInput.addEventListener(
-        "change",
-        () => {
+    if (
+        importTriggerButton &&
+        importFileInput
+    ) {
 
-            const file =
-                importFileInput.files[0];
+        importTriggerButton.addEventListener(
+            "click",
+            () =>
+                importFileInput.click()
+        );
 
 
-            if (file) {
+        importFileInput.addEventListener(
+            "change",
+            () => {
 
-                importDecksFromFile(
-                    file
-                );
+                const file =
+                    importFileInput.files[0];
+
+
+                if (file) {
+
+                    importDecksFromFile(
+                        file
+                    );
+
+                }
+
+
+                importFileInput.value =
+                    "";
 
             }
+        );
+
+    }
 
 
-            importFileInput.value =
-                "";
+    /* =========================
+       AFFICHAGE INITIAL
+    ========================= */
 
-        }
+    displayDecks();
+
+    displayForecast();
+
+
+    console.log(
+        "Mon Anki : initialisation terminée."
     );
 
 }
-
-
-/*
- * On initialise l'affichage immédiatement,
- * puisque le DOM existe déjà lorsque ce fichier
- * est importé.
- */
-
-displayDecks();
-
-displayForecast();
