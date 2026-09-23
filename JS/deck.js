@@ -119,6 +119,72 @@ const syncStatus =
     );
 
 
+/* =========================
+   EDITEUR DE DESSIN
+========================= */
+
+const drawingEditor =
+    document.getElementById(
+        "drawing-editor"
+    );
+
+
+const drawingCanvas =
+    document.getElementById(
+        "drawing-canvas"
+    );
+
+
+const clearDrawingButton =
+    document.getElementById(
+        "clear-drawing-button"
+    );
+
+
+const resetDrawingButton =
+    document.getElementById(
+        "reset-drawing-button"
+    );
+
+
+const cancelDrawingButton =
+    document.getElementById(
+        "cancel-drawing-button"
+    );
+
+
+const saveDrawingButton =
+    document.getElementById(
+        "save-drawing-button"
+    );
+
+
+const drawingContext =
+    drawingCanvas.getContext(
+        "2d"
+    );
+
+
+let drawingEditorCard =
+    null;
+
+
+let originalDrawing =
+    "";
+
+
+let isDrawing =
+    false;
+
+
+let lastX =
+    0;
+
+
+let lastY =
+    0;
+
+
 if (!deck) {
 
     alert(
@@ -293,6 +359,530 @@ function renderEmptyMessage() {
 
 
 /* =========================
+   CHARGER UN DESSIN DANS
+   LE CANVAS
+========================= */
+
+function loadDrawingIntoCanvas(
+    dataURL,
+    callback
+) {
+
+    drawingContext.clearRect(
+        0,
+        0,
+        drawingCanvas.width,
+        drawingCanvas.height
+    );
+
+
+    drawingContext.fillStyle =
+        "white";
+
+
+    drawingContext.fillRect(
+        0,
+        0,
+        drawingCanvas.width,
+        drawingCanvas.height
+    );
+
+
+    if (!dataURL) {
+
+        callback();
+
+        return;
+
+    }
+
+
+    const image =
+        new Image();
+
+
+    image.onload = function () {
+
+        const canvasWidth =
+            drawingCanvas.width;
+
+
+        const canvasHeight =
+            drawingCanvas.height;
+
+
+        const imageRatio =
+            image.width /
+            image.height;
+
+
+        const canvasRatio =
+            canvasWidth /
+            canvasHeight;
+
+
+        let width;
+        let height;
+
+
+        if (
+            imageRatio >
+            canvasRatio
+        ) {
+
+            width =
+                canvasWidth;
+
+
+            height =
+                canvasWidth /
+                imageRatio;
+
+        } else {
+
+            height =
+                canvasHeight;
+
+
+            width =
+                canvasHeight *
+                imageRatio;
+
+        }
+
+
+        const x =
+            (
+                canvasWidth -
+                width
+            ) / 2;
+
+
+        const y =
+            (
+                canvasHeight -
+                height
+            ) / 2;
+
+
+        drawingContext.drawImage(
+            image,
+            x,
+            y,
+            width,
+            height
+        );
+
+
+        callback();
+
+    };
+
+
+    image.onerror = function () {
+
+        console.error(
+            "Impossible de charger le dessin."
+        );
+
+
+        callback();
+
+    };
+
+
+    image.src =
+        dataURL;
+
+}
+
+
+/* =========================
+   OUVRIR L'EDITEUR
+========================= */
+
+function openDrawingEditor(
+    card
+) {
+
+    drawingEditorCard =
+        card;
+
+
+    originalDrawing =
+        card.drawing || "";
+
+
+    loadDrawingIntoCanvas(
+        originalDrawing,
+        () => {
+
+            drawingEditor.classList.add(
+                "visible"
+            );
+
+        }
+    );
+
+}
+
+
+/* =========================
+   FERMER L'EDITEUR
+========================= */
+
+function closeDrawingEditor() {
+
+    drawingEditor.classList.remove(
+        "visible"
+    );
+
+
+    drawingEditorCard =
+        null;
+
+
+    originalDrawing =
+        "";
+
+}
+
+
+/* =========================
+   POSITION SUR LE CANVAS
+========================= */
+
+function getCanvasPosition(
+    event
+) {
+
+    const rect =
+        drawingCanvas.getBoundingClientRect();
+
+
+    return {
+
+        x:
+            (
+                event.clientX -
+                rect.left
+            ) *
+            (
+                drawingCanvas.width /
+                rect.width
+            ),
+
+        y:
+            (
+                event.clientY -
+                rect.top
+            ) *
+            (
+                drawingCanvas.height /
+                rect.height
+            )
+
+    };
+
+}
+
+
+/* =========================
+   COMMENCER A DESSINER
+========================= */
+
+drawingCanvas.addEventListener(
+    "pointerdown",
+    event => {
+
+        event.preventDefault();
+
+
+        isDrawing =
+            true;
+
+
+        const position =
+            getCanvasPosition(
+                event
+            );
+
+
+        lastX =
+            position.x;
+
+
+        lastY =
+            position.y;
+
+
+        drawingCanvas.setPointerCapture(
+            event.pointerId
+        );
+
+
+        drawingContext.beginPath();
+
+
+        drawingContext.moveTo(
+            lastX,
+            lastY
+        );
+
+    }
+);
+
+
+/* =========================
+   DESSINER
+========================= */
+
+drawingCanvas.addEventListener(
+    "pointermove",
+    event => {
+
+        if (!isDrawing) {
+
+            return;
+
+        }
+
+
+        event.preventDefault();
+
+
+        const position =
+            getCanvasPosition(
+                event
+            );
+
+
+        drawingContext.lineWidth =
+            3;
+
+
+        drawingContext.lineCap =
+            "round";
+
+
+        drawingContext.lineJoin =
+            "round";
+
+
+        drawingContext.strokeStyle =
+            "black";
+
+
+        drawingContext.lineTo(
+            position.x,
+            position.y
+        );
+
+
+        drawingContext.stroke();
+
+
+        lastX =
+            position.x;
+
+
+        lastY =
+            position.y;
+
+    }
+);
+
+
+/* =========================
+   ARRETER DE DESSINER
+========================= */
+
+drawingCanvas.addEventListener(
+    "pointerup",
+    event => {
+
+        isDrawing =
+            false;
+
+
+        if (
+            drawingCanvas.hasPointerCapture(
+                event.pointerId
+            )
+        ) {
+
+            drawingCanvas.releasePointerCapture(
+                event.pointerId
+            );
+
+        }
+
+    }
+);
+
+
+drawingCanvas.addEventListener(
+    "pointercancel",
+    () => {
+
+        isDrawing =
+            false;
+
+    }
+);
+
+
+/* =========================
+   EFFACER LE CANVAS
+========================= */
+
+clearDrawingButton.addEventListener(
+    "click",
+    () => {
+
+        drawingContext.clearRect(
+            0,
+            0,
+            drawingCanvas.width,
+            drawingCanvas.height
+        );
+
+
+        drawingContext.fillStyle =
+            "white";
+
+
+        drawingContext.fillRect(
+            0,
+            0,
+            drawingCanvas.width,
+            drawingCanvas.height
+        );
+
+    }
+);
+
+
+/* =========================
+   REINITIALISER
+========================= */
+
+resetDrawingButton.addEventListener(
+    "click",
+    () => {
+
+        loadDrawingIntoCanvas(
+            originalDrawing,
+            () => {}
+        );
+
+    }
+);
+
+
+/* =========================
+   ANNULER
+========================= */
+
+cancelDrawingButton.addEventListener(
+    "click",
+    () => {
+
+        closeDrawingEditor();
+
+    }
+);
+
+
+/* =========================
+   ENREGISTRER LE DESSIN
+========================= */
+
+saveDrawingButton.addEventListener(
+    "click",
+    () => {
+
+        if (!drawingEditorCard) {
+
+            return;
+
+        }
+
+
+        const newDrawing =
+            drawingCanvas.toDataURL(
+                "image/png"
+            );
+
+
+        drawingEditorCard.drawing =
+            newDrawing;
+
+
+        saveDecks(
+            decks
+        );
+
+
+        syncStatus.textContent =
+            "✓ Dessin modifié et synchronisé.";
+
+
+        closeDrawingEditor();
+
+
+        renderCards();
+
+    }
+);
+
+
+/* =========================
+   FERMER EN CLIQUANT
+   A L'EXTERIEUR
+========================= */
+
+drawingEditor.addEventListener(
+    "click",
+    event => {
+
+        if (
+            event.target ===
+            drawingEditor
+        ) {
+
+            closeDrawingEditor();
+
+        }
+
+    }
+);
+
+
+/* =========================
+   ECHAP
+========================= */
+
+document.addEventListener(
+    "keydown",
+    event => {
+
+        if (
+            event.key === "Escape" &&
+            drawingEditor.classList.contains(
+                "visible"
+            )
+        ) {
+
+            closeDrawingEditor();
+
+        }
+
+    }
+);
+
+
+/* =========================
    AFFICHER LES CARTES
 ========================= */
 
@@ -396,6 +986,45 @@ function renderCards() {
                     preview
                 );
 
+
+                /*
+                 * MODIFIER LE DESSIN
+                 */
+
+                const editButton =
+                    document.createElement(
+                        "button"
+                    );
+
+
+                editButton.type =
+                    "button";
+
+
+                editButton.textContent =
+                    "✏️ Modifier le dessin";
+
+
+                wrapper.appendChild(
+                    editButton
+                );
+
+
+                editButton.addEventListener(
+                    "click",
+                    () => {
+
+                        openDrawingEditor(
+                            card
+                        );
+
+                    }
+                );
+
+
+                /*
+                 * REMPLACER L'IMAGE
+                 */
 
                 const replaceButton =
                     document.createElement(
