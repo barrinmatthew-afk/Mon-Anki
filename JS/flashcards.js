@@ -293,6 +293,44 @@ function now() {
 
 
 // ==============================
+// MELANGE ALEATOIRE
+// ==============================
+
+function shuffleArray(
+    array
+) {
+
+    for (
+        let i = array.length - 1;
+        i > 0;
+        i--
+    ) {
+
+        const j =
+            Math.floor(
+                Math.random() *
+                (i + 1)
+            );
+
+
+        [
+            array[i],
+            array[j]
+        ] =
+        [
+            array[j],
+            array[i]
+        ];
+
+    }
+
+
+    return array;
+
+}
+
+
+// ==============================
 // FILE DE CARTES
 // ==============================
 
@@ -339,7 +377,7 @@ function buildQueue() {
         );
 
 
-    return [
+    const newQueue = [
 
         ...learningCards,
 
@@ -348,6 +386,30 @@ function buildQueue() {
         ...limitedReview
 
     ];
+
+
+    /*
+     * Si le mode "Aléatoire" est sélectionné,
+     * on mélange uniquement l'ordre de la
+     * file de cette session.
+     *
+     * L'ordre réel des cartes dans le deck
+     * n'est pas modifié.
+     */
+
+    if (
+        selectedDirection ===
+        "random"
+    ) {
+
+        shuffleArray(
+            newQueue
+        );
+
+    }
+
+
+    return newQueue;
 
 }
 
