@@ -217,7 +217,7 @@ const defaultSettings = {
 
     goodFactor: 2.5,
 
-    easyFactor: 1.3
+    easyFactor: 4
 };
 
 
@@ -495,10 +495,19 @@ function getQuestionAndAnswer(
     }
 
 
-    if (
-        selectedDirection ===
-        "fr-nl"
-    ) {
+    /*
+     * fr-nl : question en français, réponse en néerlandais.
+     * nl-fr : question en néerlandais, réponse en français.
+     * random : choisit un sens différent au hasard pour chaque carte.
+     */
+    const reverseDirection =
+        selectedDirection === "fr-nl" ||
+        (
+            selectedDirection === "random" &&
+            Math.random() < 0.5
+        );
+
+    if (reverseDirection) {
 
         return {
 

@@ -980,6 +980,81 @@ function exportDecks() {
 }
 
 
+
+/*
+ * Exporte uniquement le contenu des decks, sans la progression SRS.
+ * Les champs inconnus sont conservés afin de ne pas perdre de métadonnées
+ * utiles au contenu des cartes.
+ */
+function exportDecksWithoutProgress() {
+
+    const decks =
+        loadDecks();
+
+    const progressFields = new Set([
+        "state",
+        "step",
+        "interval",
+        "nextReview",
+        "reps",
+        "level"
+    ]);
+
+    const contentOnlyDecks =
+        decks.map(deck => ({
+            ...deck,
+            cards: (Array.isArray(deck.cards) ? deck.cards : []).map(card => {
+                const contentCard = { ...card };
+
+                progressFields.forEach(field => {
+                    delete contentCard[field];
+                });
+
+                return contentCard;
+            })
+        }));
+
+    const blob =
+        new Blob(
+            [
+                JSON.stringify(
+                    contentOnlyDecks,
+                    null,
+                    2
+                )
+            ],
+            {
+                type: "application/json"
+            }
+        );
+
+    const url =
+        URL.createObjectURL(blob);
+
+    const link =
+        document.createElement("a");
+
+    link.href = url;
+
+    const date =
+        new Date()
+            .toISOString()
+            .slice(0, 10);
+
+    link.download =
+        `mon-anki-decks-sans-progression-${date}.json`;
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    link.remove();
+
+    // Laisse au navigateur le temps de commencer le téléchargement.
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+
 function mergeImportedDecks(
     importedDecks,
     existingDecks
@@ -1241,6 +1316,20 @@ export function initializeApp() {
         exportButton.addEventListener(
             "click",
             exportDecks
+        );
+
+    }
+
+    const exportContentButton =
+        document.getElementById(
+            "export-content-button"
+        );
+
+    if (exportContentButton) {
+
+        exportContentButton.addEventListener(
+            "click",
+            exportDecksWithoutProgress
         );
 
     }
