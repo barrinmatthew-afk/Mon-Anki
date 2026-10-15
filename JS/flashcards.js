@@ -388,28 +388,19 @@ function buildQueue() {
     ];
 
 
+
     /*
-     * Si le mode "Aléatoire" est sélectionné,
-     * on mélange uniquement l'ordre de la
-     * file de cette session.
+     * On mélange toujours l'ordre des cartes
+     * au début de chaque session.
      *
      * L'ordre réel des cartes dans le deck
      * n'est pas modifié.
      */
 
-    if (
-        selectedDirection ===
-        "random"
-    ) {
-
-        shuffleArray(
-            newQueue
-        );
-
-    }
-
+    shuffleArray(newQueue);
 
     return newQueue;
+
 
 }
 
