@@ -1262,6 +1262,80 @@ export function initializeApp() {
 
 
     /* =========================
+       RECHERCHE DE CARTES
+    ========================= */
+    const cardSearchInput = document.getElementById("card-search-input");
+    const cardSearchResults = document.getElementById("card-search-results");
+
+    if (cardSearchInput && cardSearchResults) {
+        const normalizeSearch = value => String(value ?? "")
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLocaleLowerCase()
+            .trim();
+
+        cardSearchInput.addEventListener("input", () => {
+            const query = normalizeSearch(cardSearchInput.value);
+            cardSearchResults.replaceChildren();
+
+            if (!query) return;
+
+            const matches = [];
+            const decks = loadDecks();
+
+            decks.forEach(deck => {
+                (Array.isArray(deck.cards) ? deck.cards : []).forEach((card, index) => {
+                    // Recherche uniquement dans le contenu visible de la carte,
+                    // pas dans les données de révision ou dans le nom du deck.
+                    const searchable = normalizeSearch([
+                        card.word, card.answer, card.question, card.translation,
+                        card.front, card.back, card.meaning, card.expression
+                    ].filter(value => typeof value === "string").join(" "));
+
+                    if (searchable.includes(query)) {
+                        matches.push({ deck, card, index });
+                    }
+                });
+            });
+
+            if (matches.length === 0) {
+                const empty = document.createElement("p");
+                empty.className = "card-search-empty";
+                empty.textContent = "Aucune carte trouvée pour « " + cardSearchInput.value.trim() + " ».";
+                cardSearchResults.appendChild(empty);
+                return;
+            }
+
+            matches.slice(0, 20).forEach(({ deck, card, index }) => {
+                const result = document.createElement("button");
+                result.type = "button";
+                result.className = "card-search-result";
+
+                const title = document.createElement("strong");
+                title.textContent = [card.word, card.question, card.front, card.expression]
+                    .find(value => typeof value === "string" && value.trim()) || "Carte " + (index + 1);
+
+                const detail = document.createElement("small");
+                detail.textContent = (card.answer || card.translation || card.back || card.meaning || "") + " — Deck : " + deck.name;
+
+                result.append(title, detail);
+                result.addEventListener("click", () => {
+                    localStorage.setItem("manageDeckName", deck.name);
+                    window.location.href = "deck.html";
+                });
+                cardSearchResults.appendChild(result);
+            });
+
+            if (matches.length > 20) {
+                const more = document.createElement("p");
+                more.className = "card-search-empty";
+                more.textContent = "Affichage des 20 premiers résultats sur " + matches.length + ".";
+                cardSearchResults.appendChild(more);
+            }
+        });
+    }
+
+    /* =========================
        AFFICHAGE INITIAL
     ========================= */
 
