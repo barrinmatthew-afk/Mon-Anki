@@ -280,7 +280,7 @@ function countDueInTree(node) {
 }
 
 
-function renderDeckTreeNode(node) {
+function renderDeckTreeNode(node, isRootGroup = true) {
     // Un deck sans sous-deck garde son affichage habituel.
     if (node.children.size === 0 && node.entry) {
         return renderDeckElement(
@@ -292,6 +292,14 @@ function renderDeckTreeNode(node) {
 
     const groupElement = document.createElement("div");
     groupElement.className = "deck-group";
+
+    // La couleur du deck parent colore l'intérieur du groupe (ex. Droit),
+    // pas les cartes de ses sous-decks (ex. CM1, CM2).
+    if (isRootGroup) {
+        const groupColor = getDeckColor(node.label);
+        groupElement.style.border = `2px solid ${groupColor}`;
+        groupElement.style.backgroundColor = `${groupColor}18`;
+    }
 
     const header = document.createElement("div");
     header.className = "deck-group-header";
@@ -339,7 +347,7 @@ function renderDeckTreeNode(node) {
 
     node.children.forEach(child => {
         content.appendChild(
-            renderDeckTreeNode(child)
+            renderDeckTreeNode(child, false)
         );
     });
 
