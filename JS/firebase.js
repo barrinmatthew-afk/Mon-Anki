@@ -297,13 +297,33 @@ function cardKey(card, index) {
         return `id:${card.id}`;
     }
 
-    // Compatibilité avec les anciennes cartes sans identifiant.
-    return [
-        "legacy",
-        String(card?.word ?? ""),
-        String(card?.answer ?? ""),
-        index
-    ].join(":");
+    // Les anciennes cartes n'ont pas toujours d'identifiant.
+    // Leur position peut changer entre appareils : on utilise donc
+    // leur contenu pour retrouver la même carte dans les deux listes.
+    const word = String(card?.word ?? "").trim().toLocaleLowerCase();
+    const answer = String(card?.answer ?? "").trim().toLocaleLowerCase();
+    const mode = String(card?.mode ?? "").trim().toLocaleLowerCase();
+
+    if (word || answer) {
+        return `legacy:${JSON.stringify([word, answer, mode])}`;
+    }
+
+    // Dernier recours pour les cartes sans contenu identifiable.
+    return `legacy-index:${index}`;
+}
+
+function cardKeys(cards) {
+    const occurrences = new Map();
+
+    return cards.map((card, index) => {
+        const baseKey = cardKey(card, index);
+        const occurrence = occurrences.get(baseKey) || 0;
+
+        occurrences.set(baseKey, occurrence + 1);
+
+        // Préserve les doublons éventuels d'une même carte.
+        return `${baseKey}#${occurrence}`;
+    });
 }
 
 
@@ -393,19 +413,18 @@ function mergeDeckLists(localDecks, cloudDecks) {
             : [];
 
         const cloudByKey = new Map();
+        const cloudKeys = cardKeys(cloudCards);
+        const localKeys = cardKeys(localCards);
 
         cloudCards.forEach((card, index) => {
-            cloudByKey.set(
-                cardKey(card, index),
-                card
-            );
+            cloudByKey.set(cloudKeys[index], card);
         });
 
         const mergedCards = [];
         const seen = new Set();
 
         localCards.forEach((card, index) => {
-            const key = cardKey(card, index);
+            const key = localKeys[index];
             const cloudCard = cloudByKey.get(key);
 
             mergedCards.push(
@@ -416,7 +435,7 @@ function mergeDeckLists(localDecks, cloudDecks) {
         });
 
         cloudCards.forEach((card, index) => {
-            const key = cardKey(card, index);
+            const key = cloudKeys[index];
 
             if (!seen.has(key)) {
                 mergedCards.push({ ...card });
@@ -638,9 +657,10 @@ onAuthStateChanged(auth, user => {
                 })
             );
 
-            // Envoyer au cloud les éventuelles données locales
-            // qui manquaient dans la version distante.
-            saveDecksToCloud(mergedDecks);
+            // Ne pas renvoyer automatiquement chaque snapshot au cloud :
+            // cela crée une boucle d'écritures et peut faire alterner
+            // des versions locales et distantes. Les modifications locales
+            // sont déjà envoyées par saveDecksToCloud() lors de leur sauvegarde.
 
             console.info(
                 "Decks actualisés depuis la synchronisation."
