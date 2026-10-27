@@ -220,328 +220,259 @@ function renderDeckElement(
 }
 
 
-function groupDecksByPrefix(decks) {
 
-    const groups =
-        new Map();
+function buildDeckTree(decks) {
+    const root = {
+        label: "",
+        children: new Map(),
+        entry: null
+    };
 
+    decks.forEach((deck, index) => {
+        const parts = deck.name.split("::");
+        let node = root;
 
-    decks.forEach(
-        (deck, index) => {
-
-            const parts =
-                deck.name.split("::");
-
-
-            const topName =
-                parts[0];
-
-
-            if (!groups.has(topName)) {
-
-                groups.set(
-                    topName,
-                    []
-                );
-
+        parts.forEach((part, partIndex) => {
+            if (!node.children.has(part)) {
+                node.children.set(part, {
+                    label: part,
+                    children: new Map(),
+                    entry: null
+                });
             }
 
+            node = node.children.get(part);
 
-            groups.get(topName).push({
+            // Le deck réel peut exister à n'importe quel niveau.
+            if (partIndex === parts.length - 1) {
+                node.entry = { deck, index };
+            }
+        });
+    });
 
-                deck,
-                index,
-                isSub: parts.length > 1,
-                subLabel:
-                    parts.slice(1).join("::")
-
-            });
-
-        }
-    );
-
-
-    return groups;
-
+    return root;
 }
+
+
+function countDueInTree(node) {
+    let total = node.entry
+        ? getDueCards(node.entry.deck).length
+        : 0;
+
+    node.children.forEach(child => {
+        total += countDueInTree(child);
+    });
+
+    return total;
+}
+
+
+function renderDeckTreeNode(node) {
+    // Un deck sans sous-deck garde son affichage habituel.
+    if (node.children.size === 0 && node.entry) {
+        return renderDeckElement(
+            node.entry.deck,
+            node.entry.index,
+            node.label
+        );
+    }
+
+    const groupElement = document.createElement("div");
+    groupElement.className = "deck-group";
+
+    const header = document.createElement("div");
+    header.className = "deck-group-header";
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "deck-group-toggle";
+    toggle.setAttribute("aria-expanded", "true");
+
+    const dueCount = countDueInTree(node);
+
+    const dueText = dueCount === 0
+        ? "✓ Rien à réviser"
+        : `${dueCount} carte${dueCount > 1 ? "s" : ""} à réviser au total`;
+
+    toggle.innerHTML = `
+        <span class="deck-group-name">
+            ${escapeHTML(node.label)}
+        </span>
+        <span class="deck-group-right">
+            <span class="deck-group-due">
+                ${dueText}
+            </span>
+            <span class="deck-group-arrow">▼</span>
+        </span>
+    `;
+
+    const content = document.createElement("div");
+    content.className = "deck-group-content";
+
+    // Si ce niveau correspond aussi à un deck réel,
+    // on affiche ce deck avant ses sous-decks.
+    if (node.entry) {
+        content.appendChild(
+            renderDeckElement(
+                node.entry.deck,
+                node.entry.index,
+                node.label
+            )
+        );
+    }
+
+    node.children.forEach(child => {
+        content.appendChild(
+            renderDeckTreeNode(child)
+        );
+    });
+
+    toggle.addEventListener("click", () => {
+        const isExpanded =
+            toggle.getAttribute("aria-expanded") === "true";
+
+        toggle.setAttribute(
+            "aria-expanded",
+            String(!isExpanded)
+        );
+
+        content.hidden = isExpanded;
+
+        const arrow =
+            toggle.querySelector(".deck-group-arrow");
+
+        arrow.textContent = isExpanded ? "▶" : "▼";
+    });
+
+    header.appendChild(toggle);
+    groupElement.appendChild(header);
+    groupElement.appendChild(content);
+
+    return groupElement;
+}
+
+
 
 
 function displayDecks() {
 
     const container =
-        document.getElementById(
-            "decks-container"
-        );
-
+        document.getElementById("decks-container");
 
     if (!container) {
-
         return;
-
     }
-
 
     container.innerHTML = "";
 
-
-    const decks =
-        loadDecks();
-
+    const decks = loadDecks();
 
     if (decks.length === 0) {
-
         container.innerHTML = `
-
             <p class="empty">
                 Aucun deck pour le moment.
             </p>
-
         `;
-
         return;
-
     }
 
+    // Construire et afficher l'arborescence des decks.
+    const tree = buildDeckTree(decks);
 
-    const groups =
-        groupDecksByPrefix(decks);
-
-
-    groups.forEach(
-        (entries, groupName) => {
-
-            if (
-                entries.length === 1 &&
-                !entries[0].isSub
-            ) {
-
-                const {
-                    deck,
-                    index
-                } = entries[0];
-
-
-                container.appendChild(
-
-                    renderDeckElement(
-                        deck,
-                        index,
-                        deck.name
-                    )
-
-                );
-
-
-                return;
-
-            }
-
-
-            const groupTotalDue =
-                entries.reduce(
-                    (total, entry) =>
-                        total +
-                        getDueCards(entry.deck).length,
-                    0
-                );
-
-
-            const groupElement =
-                document.createElement("div");
-
-
-            groupElement.className =
-                "deck-group";
-
-
-            groupElement.innerHTML = `
-
-                <div class="deck-group-header">
-
-                    <div class="deck-group-name">
-                        ${escapeHTML(groupName)}
-                    </div>
-
-                    <div class="deck-group-due">
-
-                        ${
-                            groupTotalDue === 0
-                                ? "✓ Rien à réviser"
-                                : `${groupTotalDue} carte${groupTotalDue > 1 ? "s" : ""} à réviser au total`
-                        }
-
-                    </div>
-
-                </div>
-
-            `;
-
-
-            entries.forEach(
-                entry => {
-
-                    const displayName =
-                        entry.isSub
-                            ? entry.subLabel
-                            : entry.deck.name;
-
-
-                    groupElement.appendChild(
-
-                        renderDeckElement(
-                            entry.deck,
-                            entry.index,
-                            displayName
-                        )
-
-                    );
-
-                }
-            );
-
-
-            container.appendChild(
-                groupElement
-            );
-
-        }
-    );
-
+    tree.children.forEach(node => {
+        container.appendChild(
+            renderDeckTreeNode(node)
+        );
+    });
 
     /* =========================
        BOUTONS ÉTUDIER
     ========================= */
 
-    document
+    container
         .querySelectorAll(".study-button")
         .forEach(button => {
 
-            button.addEventListener(
-                "click",
-                () => {
+            button.addEventListener("click", () => {
 
-                    const index =
-                        Number(
-                            button.dataset.index
-                        );
+                const index =
+                    Number(button.dataset.index);
 
+                const decks = loadDecks();
 
-                    const decks =
-                        loadDecks();
+                localStorage.setItem(
+                    "selectedDeck",
+                    decks[index].name
+                );
 
-
-                    localStorage.setItem(
-                        "selectedDeck",
-                        decks[index].name
-                    );
-
-
-                    window.location.href =
-                        "study.html";
-
-                }
-            );
+                window.location.href = "study.html";
+            });
 
         });
-
 
     /* =========================
        BOUTONS GÉRER
     ========================= */
 
-    document
+    container
         .querySelectorAll(".manage-button")
         .forEach(button => {
 
-            button.addEventListener(
-                "click",
-                () => {
+            button.addEventListener("click", () => {
 
-                    const index =
-                        Number(
-                            button.dataset.index
-                        );
+                const index =
+                    Number(button.dataset.index);
 
+                const decks = loadDecks();
 
-                    const decks =
-                        loadDecks();
+                localStorage.setItem(
+                    "manageDeckName",
+                    decks[index].name
+                );
 
-
-                    localStorage.setItem(
-                        "manageDeckName",
-                        decks[index].name
-                    );
-
-
-                    window.location.href =
-                        "deck.html";
-
-                }
-            );
+                window.location.href = "deck.html";
+            });
 
         });
-
 
     /* =========================
        BOUTONS SUPPRIMER
     ========================= */
 
-    document
+    container
         .querySelectorAll(".delete-button")
         .forEach(button => {
 
-            button.addEventListener(
-                "click",
-                () => {
+            button.addEventListener("click", () => {
 
-                    const index =
-                        Number(
-                            button.dataset.index
-                        );
+                const index =
+                    Number(button.dataset.index);
 
+                const decks = loadDecks();
 
-                    const decks =
-                        loadDecks();
+                const deckName = decks[index].name;
 
+                const confirmation = confirm(
+                    `Supprimer le deck "${deckName}" ?`
+                );
 
-                    const deckName =
-                        decks[index].name;
-
-
-                    const confirmation =
-                        confirm(
-                            `Supprimer le deck "${deckName}" ?`
-                        );
-
-
-                    if (!confirmation) {
-
-                        return;
-
-                    }
-
-
-                    decks.splice(
-                        index,
-                        1
-                    );
-
-
-                    saveDecks(
-                        decks
-                    );
-
-
-                    displayDecks();
-
-                    displayForecast();
-
+                if (!confirmation) {
+                    return;
                 }
-            );
+
+                decks.splice(index, 1);
+
+                saveDecks(decks);
+
+                displayDecks();
+                displayForecast();
+
+            });
 
         });
 
 }
+
 
 
 /* =========================
