@@ -193,17 +193,6 @@ function renderDeckElement(
 
             <div class="deck-actions">
 
-                <label class="deck-color-control" title="Choisir la couleur de ce deck">
-                    <span>Couleur</span>
-                    <input
-                        type="color"
-                        class="deck-color-picker"
-                        data-index="${index}"
-                        value="${getDeckColor(deck)}"
-                        aria-label="Couleur du deck ${escapeHTML(displayName)}"
-                    >
-                </label>
-
                 <button
                     class="study-button"
                     data-index="${index}"
@@ -599,18 +588,17 @@ function createDeck() {
 ========================= */
 
 function getDeckColor(deckOrName) {
-    // Une couleur choisie par l'utilisateur est prioritaire.
-    if (deckOrName && typeof deckOrName === "object" && /^#[0-9a-f]{6}$/i.test(deckOrName.color || "")) {
-        return deckOrName.color;
+    const decks = loadDecks();
+    const name = typeof deckOrName === "object" ? deckOrName.name : String(deckOrName || "");
+    const rootName = name.split("::")[0];
+    const rootDeck = decks.find(deck => deck.name === rootName);
+    if (rootDeck && /^#[0-9a-f]{6}$/i.test(rootDeck.color || "")) {
+        return rootDeck.color;
     }
 
-    // Couleur par défaut stable si aucune couleur personnalisée n'a été choisie.
-    const deckName = typeof deckOrName === "object"
-        ? deckOrName.name
-        : deckOrName;
     const palette = ["#2563eb", "#0f766e", "#c2410c", "#7c3aed", "#be185d", "#4d7c0f", "#0369a1", "#a16207", "#475569", "#0e7490", "#9333ea", "#b91c1c"];
     let hash = 0;
-    for (const char of String(deckName || "")) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+    for (const char of rootName) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
     return palette[hash % palette.length];
 }
 
@@ -634,12 +622,17 @@ function getForecast() {
 
         decks.forEach(deck => {
             const cards = Array.isArray(deck.cards) ? deck.cards : [];
+            const currentHourStart = new Date(now);
+            currentHourStart.setMinutes(0, 0, 0);
+            const currentHour = start === currentHourStart.getTime();
             const count = cards.filter(card => {
                 const reviewTime = Number(card.nextReview);
-                return Number.isFinite(reviewTime) &&
-                    reviewTime > now &&
-                    reviewTime >= start &&
-                    reviewTime < end;
+                // Les cartes déjà dues (nextReview = 0 ou date passée)
+                // sont comptées dans l'heure actuelle.
+                if (!Number.isFinite(reviewTime) || reviewTime <= now) {
+                    return currentHour;
+                }
+                return reviewTime >= start && reviewTime < end;
             }).length;
             if (count > 0) {
                 deckCounts.push({
@@ -663,26 +656,10 @@ function getForecast() {
 
 function displayForecast() {
     const chart = document.getElementById("forecast-chart");
-    const legend = document.getElementById("forecast-legend");
     if (!chart) return;
 
     const forecast = getForecast();
     const decks = loadDecks();
-
-    if (legend) {
-        legend.innerHTML = "";
-        decks.forEach(deck => {
-            const item = document.createElement("div");
-            item.className = "forecast-legend-item";
-            const swatch = document.createElement("span");
-            swatch.className = "forecast-legend-swatch";
-            swatch.style.backgroundColor = getDeckColor(deck);
-            const name = document.createElement("span");
-            name.textContent = deck.name;
-            item.append(swatch, name);
-            legend.appendChild(item);
-        });
-    }
 
     chart.innerHTML = "";
     if (!forecast.some(item => item.count > 0)) {
