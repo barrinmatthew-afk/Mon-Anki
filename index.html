@@ -505,6 +505,45 @@
         }
 
 
+
+        /* Mise en page mobile et timeline colorée */
+        #forecast-header { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+        #manual-sync-button { flex:0 0 auto; margin:0; border-color:#cbd5e1; font-weight:600; }
+        #forecast-legend { display:flex; flex-wrap:wrap; gap:8px 14px; margin-top:18px; }
+        .forecast-legend-item { display:inline-flex; align-items:center; gap:7px; font-size:13px; color:#444; }
+        .forecast-legend-swatch { width:11px; height:11px; border-radius:3px; flex:0 0 11px; }
+        #forecast-chart { align-items:stretch; gap:5px; height:220px; overflow-x:auto; overscroll-behavior-x:contain; -webkit-overflow-scrolling:touch; padding:16px 6px 0; }
+        .forecast-column { flex:0 0 34px; }
+        .forecast-bar-container { align-items:flex-end; width:100%; }
+        .forecast-bar { display:flex; flex-direction:column-reverse; overflow:hidden; width:22px; min-height:2px; background:#e5e7eb; border-radius:5px 5px 0 0; }
+        .forecast-segment { width:100%; min-height:0; }
+        .forecast-number { font-weight:600; }
+        @media (max-width:600px) {
+            body { margin:14px auto; padding:0 12px; font-size:15px; }
+            h1 { font-size:26px; }
+            #account-section, #create-deck-section, #sync-section, #forecast-section { padding:15px; margin-top:18px; border-radius:12px; }
+            .deck { padding:13px; }
+            .deck-header { flex-direction:column; align-items:stretch; gap:12px; }
+            .deck-name { font-size:19px; overflow-wrap:anywhere; }
+            .deck-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; width:100%; }
+            .deck-actions button { width:100%; min-width:0; margin:0; padding:11px 8px; }
+            .deck-actions .delete-button { grid-column:1 / -1; }
+            #new-deck-name { box-sizing:border-box; width:100%; max-width:100%; }
+            #create-deck { width:100%; margin:8px 0 0; }
+            #forecast-header { flex-direction:column; align-items:stretch; }
+            #manual-sync-button { width:100%; padding:12px; }
+            #forecast-chart { height:190px; margin-right:-5px; }
+            .forecast-bar-container { height:150px; }
+            .forecast-column { flex-basis:32px; }
+            .forecast-hour { font-size:11px; }
+            #forecast-legend { gap:10px 12px; }
+            .main-actions a, .main-actions button { display:block; width:100%; box-sizing:border-box; margin:8px 0; }
+            #sync-section button { max-width:100%; margin:5px 0; }
+            .deck-group-header { align-items:flex-start; gap:8px; }
+            .deck-group-name { font-size:17px; overflow-wrap:anywhere; }
+            .deck-group-content { padding-left:5px; }
+        }
+
     </style>
 
 </head>
@@ -561,22 +600,18 @@
 
 
 <div id="forecast-section">
-
-    <h2>
-        Cartes à venir
-    </h2>
-
-
-    <p class="forecast-subtitle">
-
-        Cartes qui deviendront disponibles au cours
-        des prochaines heures.
-
-    </p>
-
-
-    <div id="forecast-chart"></div>
-
+    <div id="forecast-header">
+        <div>
+            <h2>Timeline des révisions</h2>
+            <p class="forecast-subtitle">
+                Chaque barre indique le nombre de cartes prévues par heure. Les couleurs identifient les decks.
+                Fais défiler horizontalement pour parcourir les prochaines 24 heures.
+            </p>
+        </div>
+        <button id="manual-sync-button" type="button">↻ Actualiser / synchroniser</button>
+    </div>
+    <div id="forecast-chart" aria-label="Timeline des cartes à réviser"></div>
+    <div id="forecast-legend" aria-label="Couleurs des decks"></div>
 </div>
 
 
@@ -737,6 +772,31 @@
 
             const syncStatus =
                 document.getElementById("sync-status");
+
+            const manualSyncButton = document.getElementById("manual-sync-button");
+            manualSyncButton?.addEventListener("click", async () => {
+                if (manualSyncButton.disabled) return;
+                manualSyncButton.disabled = true;
+                manualSyncButton.textContent = "Synchronisation…";
+                if (syncStatus) syncStatus.textContent = "Actualisation des decks…";
+
+                try {
+                    const currentUser = await waitForAuth();
+                    if (currentUser) {
+                        await syncLocalDecksWithCloud();
+                        if (syncStatus) syncStatus.textContent = "✓ Synchronisation terminée.";
+                    } else if (syncStatus) {
+                        syncStatus.textContent = "Mode local : actualisation sur cet appareil.";
+                    }
+                    // Recharge les données visibles après la fusion locale/distante.
+                    window.location.reload();
+                } catch (error) {
+                    console.error("Erreur lors de la synchronisation manuelle :", error);
+                    if (syncStatus) syncStatus.textContent = "Échec de la synchronisation. Vérifie ta connexion puis réessaie.";
+                    manualSyncButton.disabled = false;
+                    manualSyncButton.textContent = "↻ Réessayer la synchronisation";
+                }
+            });
 
             // Connexion Google
             loginButton.addEventListener("click", async () => {

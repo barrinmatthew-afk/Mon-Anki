@@ -562,260 +562,114 @@ function createDeck() {
    FORECAST
 ========================= */
 
+function getDeckColor(deckName) {
+    // Couleur déterministe : le même deck garde sa couleur sur tous les appareils.
+    const palette = ["#2563eb","#0f766e","#c2410c","#7c3aed","#be185d","#4d7c0f","#0369a1","#a16207","#475569","#0e7490","#9333ea","#b91c1c"];
+    let hash = 0;
+    for (const char of String(deckName || "")) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+    return palette[hash % palette.length];
+}
+
+
 function getForecast() {
-
-    const decks =
-        loadDecks();
-
-
-    const now =
-        Date.now();
-
-
-    const hour =
-        60 * 60 * 1000;
-
-
+    const decks = loadDecks();
+    const now = Date.now();
+    const hourMs = 60 * 60 * 1000;
     const forecast = [];
 
+    for (let i = 0; i < 24; i++) {
+        const start = now + i * hourMs;
+        const end = start + hourMs;
+        const deckCounts = [];
 
-    for (
-        let i = 0;
-        i < 24;
-        i++
-    ) {
-
-        const start =
-            now + i * hour;
-
-
-        const end =
-            start + hour;
-
-
-        let count = 0;
-
-
-        decks.forEach(
-            deck => {
-
-                deck.cards.forEach(
-                    card => {
-
-                        if (!card.nextReview) {
-
-                            return;
-
-                        }
-
-
-                        if (
-                            card.nextReview > start &&
-                            card.nextReview <= end
-                        ) {
-
-                            count++;
-
-                        }
-
-                    }
-                );
-
-            }
-        );
-
-
-        forecast.push({
-
-            start,
-            end,
-            count
-
+        decks.forEach(deck => {
+            const cards = Array.isArray(deck.cards) ? deck.cards : [];
+            const count = cards.filter(card =>
+                Number(card.nextReview) > start && Number(card.nextReview) <= end
+            ).length;
+            if (count > 0) deckCounts.push({ name: deck.name, count, color: getDeckColor(deck.name) });
         });
 
+        forecast.push({
+            start,
+            end,
+            deckCounts,
+            count: deckCounts.reduce((sum, item) => sum + item.count, 0)
+        });
     }
-
-
     return forecast;
-
 }
 
 
 function displayForecast() {
+    const chart = document.getElementById("forecast-chart");
+    const legend = document.getElementById("forecast-legend");
+    if (!chart) return;
 
-    const chart =
-        document.getElementById(
-            "forecast-chart"
-        );
+    const forecast = getForecast();
+    const decks = loadDecks();
 
-
-    if (!chart) {
-
-        return;
-
+    if (legend) {
+        legend.innerHTML = "";
+        decks.forEach(deck => {
+            const item = document.createElement("div");
+            item.className = "forecast-legend-item";
+            const swatch = document.createElement("span");
+            swatch.className = "forecast-legend-swatch";
+            swatch.style.backgroundColor = getDeckColor(deck.name);
+            const name = document.createElement("span");
+            name.textContent = deck.name;
+            item.append(swatch, name);
+            legend.appendChild(item);
+        });
     }
-
-
-    const forecast =
-        getForecast();
-
-
-    const hasFutureCards =
-        forecast.some(
-            item =>
-                item.count > 0
-        );
-
-
-    if (!hasFutureCards) {
-
-        chart.innerHTML = `
-
-            <div class="forecast-empty">
-
-                Aucune carte prévue dans les
-                prochaines 24 heures.
-
-            </div>
-
-        `;
-
-        return;
-
-    }
-
-
-    const max =
-        Math.max(
-            ...forecast.map(
-                item => item.count
-            ),
-            1
-        );
-
 
     chart.innerHTML = "";
+    if (!forecast.some(item => item.count > 0)) {
+        chart.innerHTML = '<div class="forecast-empty">Aucune carte prévue dans les prochaines 24 heures.</div>';
+        return;
+    }
 
+    const max = Math.max(...forecast.map(item => item.count), 1);
 
-    forecast.forEach(
-        item => {
+    forecast.forEach(item => {
+        const date = new Date(item.start);
+        const column = document.createElement("div");
+        column.className = "forecast-column";
 
-            const date =
-                new Date(
-                    item.start
-                );
+        const number = document.createElement("div");
+        number.className = "forecast-number";
+        number.textContent = item.count > 0 ? String(item.count) : "";
 
+        const barContainer = document.createElement("div");
+        barContainer.className = "forecast-bar-container";
+        const bar = document.createElement("div");
+        bar.className = "forecast-bar";
+        bar.style.height = item.count === 0 ? "2%" : `${Math.max(5, (item.count / max) * 100)}%`;
 
-            const hourText =
-                date.toLocaleTimeString(
-                    "fr-BE",
-                    {
-                        hour: "2-digit",
-                        minute: "2-digit"
-                    }
-                );
+        item.deckCounts.forEach(deck => {
+            const segment = document.createElement("div");
+            segment.className = "forecast-segment";
+            segment.style.height = `${(deck.count / item.count) * 100}%`;
+            segment.style.backgroundColor = deck.color;
+            bar.appendChild(segment);
+        });
 
+        const hour = document.createElement("div");
+        hour.className = "forecast-hour";
+        hour.textContent = date.toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" });
 
-            const column =
-                document.createElement(
-                    "div"
-                );
+        const detail = item.deckCounts.length
+            ? item.deckCounts.map(deck => `${deck.name}: ${deck.count} carte${deck.count > 1 ? "s" : ""}`).join("\n")
+            : "Aucune carte prévue";
+        column.title = `${hour.textContent} — ${item.count} carte${item.count > 1 ? "s" : ""}\n${detail}`;
+        column.setAttribute("aria-label", column.title);
+        column.tabIndex = 0;
 
-
-            column.className =
-                "forecast-column";
-
-
-            const number =
-                document.createElement(
-                    "div"
-                );
-
-
-            number.className =
-                "forecast-number";
-
-
-            number.textContent =
-                item.count > 0
-                    ? item.count
-                    : "";
-
-
-            const barContainer =
-                document.createElement(
-                    "div"
-                );
-
-
-            barContainer.className =
-                "forecast-bar-container";
-
-
-            const bar =
-                document.createElement(
-                    "div"
-                );
-
-
-            bar.className =
-                "forecast-bar";
-
-
-            const height =
-                item.count === 0
-                    ? 2
-                    : Math.max(
-                        5,
-                        (item.count / max) * 100
-                    );
-
-
-            bar.style.height =
-                `${height}%`;
-
-
-            const hour =
-                document.createElement(
-                    "div"
-                );
-
-
-            hour.className =
-                "forecast-hour";
-
-
-            hour.textContent =
-                hourText;
-
-
-            barContainer.appendChild(
-                bar
-            );
-
-
-            column.appendChild(
-                number
-            );
-
-
-            column.appendChild(
-                barContainer
-            );
-
-
-            column.appendChild(
-                hour
-            );
-
-
-            chart.appendChild(
-                column
-            );
-
-        }
-    );
-
+        barContainer.appendChild(bar);
+        column.append(number, barContainer, hour);
+        chart.appendChild(column);
+    });
 }
 
 
