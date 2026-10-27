@@ -164,6 +164,7 @@ function renderDeckElement(
 
     deckElement.className =
         "deck";
+    deckElement.style.borderLeft = `5px solid ${getDeckColor(deck)}`;
 
 
     const dueText =
