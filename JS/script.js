@@ -1262,6 +1262,86 @@ export function initializeApp() {
 
 
     /* =========================
+       RECHERCHE DE CARTES
+    ========================= */
+    const cardSearchInput = document.getElementById("card-search-input");
+    const cardSearchResults = document.getElementById("card-search-results");
+
+    if (cardSearchInput && cardSearchResults) {
+        const searchableText = value => {
+            if (value === null || value === undefined) return "";
+            if (typeof value === "string" || typeof value === "number") return String(value);
+            if (Array.isArray(value)) return value.map(searchableText).join(" ");
+            if (typeof value === "object") return Object.values(value).map(searchableText).join(" ");
+            return "";
+        };
+
+        const cardMainText = card => {
+            const preferred = ["word", "question", "front", "term", "prompt", "expression", "japanese", "kanji"];
+            const found = preferred.map(key => card[key]).find(value => typeof value === "string" && value.trim());
+            return found || Object.values(card).find(value => typeof value === "string" && value.trim()) || "Carte sans titre";
+        };
+
+        const cardAnswerText = card => {
+            const preferred = ["answer", "translation", "back", "definition", "meaning", "response"];
+            const found = preferred.map(key => card[key]).find(value => typeof value === "string" && value.trim());
+            return found || "";
+        };
+
+        const renderCardSearch = () => {
+            const query = cardSearchInput.value.trim().toLocaleLowerCase();
+            cardSearchResults.innerHTML = "";
+            if (!query) return;
+
+            const matches = [];
+            loadDecks().forEach(deck => {
+                (Array.isArray(deck.cards) ? deck.cards : []).forEach((card, index) => {
+                    if (searchableText(card).toLocaleLowerCase().includes(query) ||
+                        deck.name.toLocaleLowerCase().includes(query)) {
+                        matches.push({ deck, card, index });
+                    }
+                });
+            });
+
+            if (!matches.length) {
+                cardSearchResults.innerHTML = '<p class="card-search-empty">Aucune carte trouvée.</p>';
+                return;
+            }
+
+            const countLabel = document.createElement("p");
+            countLabel.className = "card-search-empty";
+            countLabel.textContent = matches.length + " résultat" + (matches.length > 1 ? "s" : "") +
+                (matches.length > 20 ? " — premiers 20 affichés" : "");
+            cardSearchResults.appendChild(countLabel);
+
+            matches.slice(0, 20).forEach(({ deck, card }) => {
+                const result = document.createElement("button");
+                result.type = "button";
+                result.className = "card-search-result";
+                const title = document.createElement("strong");
+                title.textContent = String(cardMainText(card));
+                result.appendChild(title);
+                const answer = cardAnswerText(card);
+                if (answer) {
+                    const answerText = document.createElement("span");
+                    answerText.textContent = String(answer);
+                    result.appendChild(answerText);
+                }
+                const deckLabel = document.createElement("small");
+                deckLabel.textContent = deck.name;
+                result.appendChild(deckLabel);
+                result.addEventListener("click", () => {
+                    localStorage.setItem("manageDeckName", deck.name);
+                    window.location.href = "deck.html";
+                });
+                cardSearchResults.appendChild(result);
+            });
+        };
+
+        cardSearchInput.addEventListener("input", renderCardSearch);
+    }
+
+    /* =========================
        AFFICHAGE INITIAL
     ========================= */
 
