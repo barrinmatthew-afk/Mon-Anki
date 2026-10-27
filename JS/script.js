@@ -480,25 +480,34 @@ function displayDecks() {
 
             button.addEventListener("click", () => {
 
-                const index =
-                    Number(button.dataset.index);
-
                 const decks = loadDecks();
+                const index = Number(button.dataset.index);
 
-                const deckName = decks[index].name;
-
-                const confirmation = confirm(
-                    `Supprimer le deck "${deckName}" ?`
-                );
-
-                if (!confirmation) {
+                if (!Number.isInteger(index) || index < 0 || !decks[index]) {
+                    alert("Impossible de retrouver ce deck. Actualise la page puis réessaie.");
                     return;
                 }
 
-                decks.splice(index, 1);
+                const deckName = decks[index].name;
+                const childDecks = decks.filter(item =>
+                    item.name.startsWith(deckName + "::")
+                );
 
-                saveDecks(decks);
+                const message = childDecks.length
+                    ? `Supprimer "${deckName}" et ses ${childDecks.length} sous-deck(s) ?`
+                    : `Supprimer le deck "${deckName}" ?`;
 
+                if (!confirm(message)) return;
+
+                // Supprime le deck sélectionné et ses éventuels sous-decks
+                // afin qu'un groupe parent ne réapparaisse pas aussitôt.
+                const namesToDelete = new Set([
+                    deckName,
+                    ...childDecks.map(item => item.name)
+                ]);
+                const remainingDecks = decks.filter(item => !namesToDelete.has(item.name));
+
+                saveDecks(remainingDecks);
                 displayDecks();
                 displayForecast();
 
