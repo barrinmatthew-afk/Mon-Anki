@@ -377,27 +377,45 @@
         Ensuite seulement on charge flashcards.js.
     -->
 
+    
+    
     <script type="module">
+        // Enregistrer le service worker pour le mode hors ligne.
+        if ("serviceWorker" in navigator) {
+            navigator.serviceWorker
+                .register("./service-worker.js")
+                .catch(error => {
+                    console.warn(
+                        "Service worker indisponible :",
+                        error
+                    );
+                });
+        }
 
-        import {
-            waitForAuth,
-            syncLocalDecksWithCloud
-        } from "./JS/firebase.js";
-
-
-        await waitForAuth();
-
-        await syncLocalDecksWithCloud();
-
-
-        /*
-         * Le script des cartes est chargé
-         * seulement après la synchronisation.
-         */
-
+        // Charger les cartes en premier : elles ne dépendent pas
+        // du chargement de Firebase pour s'afficher.
         await import("./JS/flashcards.js");
 
+        // Tenter de charger Firebase en arrière-plan.
+        // Si Internet est absent, les révisions locales continuent.
+        import("./JS/firebase.js")
+            .then(({ waitForAuth, syncLocalDecksWithCloud }) => {
+                return waitForAuth()
+                    .then(user => {
+                        if (user) {
+                            return syncLocalDecksWithCloud();
+                        }
+                    });
+            })
+            .catch(error => {
+                console.warn(
+                    "Firebase indisponible : mode local.",
+                    error
+                );
+            });
     </script>
+
+
 
 </body>
 

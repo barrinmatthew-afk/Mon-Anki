@@ -487,22 +487,34 @@
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
+
+
 <script type="module">
+    if ("serviceWorker" in navigator) {
+        navigator.serviceWorker
+            .register("./service-worker.js")
+            .catch(error => {
+                console.warn(
+                    "Service worker indisponible :",
+                    error
+                );
+            });
+    }
 
-    import {
-        waitForAuth,
-        syncLocalDecksWithCloud
-    } from "./JS/firebase.js";
+    try {
+        await import("./JS/import.js");
+    } catch (error) {
+        console.error(
+            "Impossible de charger l'importateur :",
+            error
+        );
 
-
-    await waitForAuth();
-
-    await syncLocalDecksWithCloud();
-
-
-    await import("./JS/import.js");
-
+        document.getElementById("status").textContent =
+            "Impossible de charger l'importateur.";
+    }
 </script>
+
+
 
 </body>
 

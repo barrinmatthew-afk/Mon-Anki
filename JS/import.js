@@ -1,6 +1,4 @@
-import {
-    saveDecksToCloud
-} from "./firebase.js";
+
 
 
 const decks =
@@ -31,33 +29,48 @@ const statusElement =
 let addRowControlRow = null;
 
 
+
 async function saveDecks() {
-
-    localStorage.setItem(
-        "decks",
-        JSON.stringify(decks)
-    );
-
+    // Sauvegarde locale immédiate.
     try {
-
-        await saveDecksToCloud(decks);
-
-        statusElement.textContent =
-            "✓ Cartes enregistrées et synchronisées.";
-
+        localStorage.setItem(
+            "decks",
+            JSON.stringify(decks)
+        );
     } catch (error) {
-
         console.error(
-            "Erreur de synchronisation :",
+            "Erreur de sauvegarde locale :",
             error
         );
 
         statusElement.textContent =
-            "⚠ Cartes enregistrées localement, mais erreur de synchronisation.";
+            "Erreur : impossible d'enregistrer les cartes localement.";
 
+        return;
     }
 
+    statusElement.textContent =
+        "✓ Cartes enregistrées sur cet appareil.";
+
+    // Synchronisation facultative en arrière-plan.
+    if (typeof window.saveDecksToCloud === "function") {
+        try {
+            await window.saveDecksToCloud(decks);
+
+            statusElement.textContent =
+                "✓ Cartes enregistrées et synchronisées.";
+        } catch (error) {
+            console.warn(
+                "Synchronisation cloud indisponible :",
+                error
+            );
+
+            statusElement.textContent =
+                "✓ Cartes enregistrées localement. Synchronisation à réessayer.";
+        }
+    }
 }
+
 
 
 function populateDeckSelect() {
@@ -1323,3 +1336,39 @@ addRowControlRow =
 cardsTable.appendChild(
     addRowControlRow
 );
+
+
+ // Firebase se charge indépendamment de l'interface.
+import("./firebase.js")
+    .then(async ({
+        waitForAuth,
+        syncLocalDecksWithCloud
+    }) => {
+        const user = await waitForAuth();
+
+        if (!user) {
+            return;
+        }
+
+        await syncLocalDecksWithCloud();
+
+        // Actualiser les decks après la synchronisation.
+        const syncedDecks =
+            JSON.parse(
+                localStorage.getItem("decks")
+            ) || [];
+
+        decks.splice(
+            0,
+            decks.length,
+            ...syncedDecks
+        );
+
+        populateDeckSelect();
+    })
+    .catch(error => {
+        console.warn(
+            "Firebase indisponible : l'importateur reste en mode local.",
+            error
+        );
+    });

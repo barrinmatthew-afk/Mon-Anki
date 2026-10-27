@@ -682,171 +682,146 @@
      FIREBASE + MON ANKI
 ========================= -->
 
+
 <script type="module">
-
-    import {
-
-        loginWithGoogle,
-        logout,
-        waitForAuth,
-        syncLocalDecksWithCloud
-
-    } from "./JS/firebase.js";
-
-
-    import {
-
-        initializeApp
-
-    } from "./JS/script.js";
-
-
     // ==============================
-    // ELEMENTS
+    // MODE HORS LIGNE
     // ==============================
 
-    const loginButton =
-        document.getElementById("login-button");
-
-
-    const logoutButton =
-        document.getElementById("logout-button");
-
-
-    const userInfo =
-        document.getElementById("user-info");
-
-
-    const syncStatus =
-        document.getElementById("sync-status");
-
+    if ("serviceWorker" in navigator) {
+        navigator.serviceWorker
+            .register("./service-worker.js")
+            .catch(error => {
+                console.warn(
+                    "Service worker indisponible :",
+                    error
+                );
+            });
+    }
 
     // ==============================
-    // CONNEXION GOOGLE
+    // INITIALISER MON ANKI SANS ATTENDRE FIREBASE
     // ==============================
 
-    loginButton.addEventListener(
-        "click",
-        async () => {
+    try {
+        const { initializeApp } =
+            await import("./JS/script.js");
 
+        initializeApp();
+    } catch (error) {
+        console.error(
+            "Impossible d'initialiser Mon Anki :",
+            error
+        );
+    }
+
+    // ==============================
+    // FIREBASE — CHARGEMENT EN ARRIÈRE-PLAN
+    // ==============================
+
+    import("./JS/firebase.js")
+        .then(async ({
+            loginWithGoogle,
+            logout,
+            waitForAuth,
+            syncLocalDecksWithCloud
+        }) => {
+            const loginButton =
+                document.getElementById("login-button");
+
+            const logoutButton =
+                document.getElementById("logout-button");
+
+            const userInfo =
+                document.getElementById("user-info");
+
+            const syncStatus =
+                document.getElementById("sync-status");
+
+            // Connexion Google
+            loginButton.addEventListener("click", async () => {
+                try {
+                    await loginWithGoogle();
+                    window.location.reload();
+                } catch (error) {
+                    console.error(
+                        "Erreur de connexion :",
+                        error
+                    );
+
+                    alert(
+                        "Impossible de se connecter avec Google."
+                    );
+                }
+            });
+
+            // Déconnexion
+            logoutButton.addEventListener("click", async () => {
+                try {
+                    await logout();
+                    window.location.reload();
+                } catch (error) {
+                    console.error(
+                        "Erreur de déconnexion :",
+                        error
+                    );
+                }
+            });
+
+            // Vérification du compte sans bloquer l'application
             try {
+                const user = await waitForAuth();
 
-                await loginWithGoogle();
+                if (user) {
+                    loginButton.style.display = "none";
+                    logoutButton.style.display = "inline-block";
 
-                window.location.reload();
+                    userInfo.textContent =
+                        `Connecté avec ${user.email}`;
 
+                    syncStatus.textContent =
+                        "Synchronisation avec Firestore...";
+
+                    await syncLocalDecksWithCloud();
+
+                    syncStatus.textContent =
+                        "✓ Synchronisation terminée.";
+                } else {
+                    loginButton.style.display = "inline-block";
+                    logoutButton.style.display = "none";
+
+                    userInfo.textContent = "Non connecté.";
+
+                    syncStatus.textContent =
+                        "Mode local : connecte-toi avec Google pour synchroniser tes decks.";
+                }
             } catch (error) {
-
-                console.error(
-                    "Erreur de connexion :",
+                console.warn(
+                    "Synchronisation indisponible :",
                     error
                 );
 
-
-                alert(
-                    "Impossible de se connecter avec Google."
-                );
-
+                syncStatus.textContent =
+                    "Mode local : synchronisation indisponible pour le moment.";
             }
+        })
+        .catch(error => {
+            // Firebase inaccessible : on garde l'application locale.
+            console.warn(
+                "Firebase indisponible : mode hors ligne.",
+                error
+            );
 
-        }
-    );
+            const syncStatus =
+                document.getElementById("sync-status");
 
-
-    // ==============================
-    // DECONNEXION
-    // ==============================
-
-    logoutButton.addEventListener(
-        "click",
-        async () => {
-
-            try {
-
-                await logout();
-
-                window.location.reload();
-
-            } catch (error) {
-
-                console.error(
-                    "Erreur de déconnexion :",
-                    error
-                );
-
+            if (syncStatus) {
+                syncStatus.textContent =
+                    "Mode local : tes révisions restent sur cet appareil.";
             }
-
-        }
-    );
-
-
-    // ==============================
-    // ATTENDRE FIREBASE
-    // ==============================
-
-    const user =
-        await waitForAuth();
-
-
-    if (user) {
-
-        loginButton.style.display =
-            "none";
-
-
-        logoutButton.style.display =
-            "inline-block";
-
-
-        userInfo.textContent =
-            `Connecté avec ${user.email}`;
-
-
-        syncStatus.textContent =
-            "Synchronisation avec Firestore...";
-
-    } else {
-
-        loginButton.style.display =
-            "inline-block";
-
-
-        logoutButton.style.display =
-            "none";
-
-
-        userInfo.textContent =
-            "Non connecté.";
-
-
-        syncStatus.textContent =
-            "Mode local : connecte-toi avec Google pour synchroniser tes decks.";
-
-    }
-
-
-    // ==============================
-    // SYNCHRONISATION
-    // ==============================
-
-    await syncLocalDecksWithCloud();
-
-
-    if (user) {
-
-        syncStatus.textContent =
-            "✓ Decks synchronisés avec Firestore.";
-
-    }
-
-
-    // ==============================
-    // INITIALISER MON ANKI
-    // ==============================
-
-    initializeApp();
-
+        });
 </script>
+
 
 
 </body>

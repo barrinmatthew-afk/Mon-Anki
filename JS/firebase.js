@@ -1,10 +1,10 @@
+
 // ==============================
 // FIREBASE — MON ANKI
+// Sauvegarde locale prioritaire + synchronisation différée
 // ==============================
 
-import {
-    initializeApp
-} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
 
 import {
     getAuth,
@@ -15,7 +15,9 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 
 import {
+    initializeFirestore,
     getFirestore,
+    persistentLocalCache,
     doc,
     getDoc,
     setDoc,
@@ -28,19 +30,12 @@ import {
 // ==============================
 
 const firebaseConfig = {
-
     apiKey: "AIzaSyDN5sEmYBBwAvJuE_03Pv59cPcdVMpVM54",
-
     authDomain: "mon-anki.firebaseapp.com",
-
     projectId: "mon-anki",
-
     storageBucket: "mon-anki.firebasestorage.app",
-
     messagingSenderId: "221401653253",
-
     appId: "1:221401653253:web:fe40dc3753fa880020fc6c"
-
 };
 
 
@@ -48,17 +43,25 @@ const firebaseConfig = {
 // INITIALISATION
 // ==============================
 
-const app =
-    initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 
-const auth =
-    getAuth(app);
+let db;
 
-const db =
-    getFirestore(app);
+try {
+    db = initializeFirestore(app, {
+        localCache: persistentLocalCache()
+    });
+} catch (error) {
+    console.warn(
+        "Cache Firestore persistant indisponible :",
+        error
+    );
 
-const provider =
-    new GoogleAuthProvider();
+    db = getFirestore(app);
+}
+
+const provider = new GoogleAuthProvider();
 
 
 // ==============================
@@ -66,25 +69,12 @@ const provider =
 // ==============================
 
 export async function loginWithGoogle() {
-
     try {
-
-        await signInWithPopup(
-            auth,
-            provider
-        );
-
+        await signInWithPopup(auth, provider);
     } catch (error) {
-
-        console.error(
-            "Erreur de connexion :",
-            error
-        );
-
+        console.error("Erreur de connexion :", error);
         throw error;
-
     }
-
 }
 
 
@@ -93,22 +83,12 @@ export async function loginWithGoogle() {
 // ==============================
 
 export async function logout() {
-
     try {
-
         await signOut(auth);
-
     } catch (error) {
-
-        console.error(
-            "Erreur de déconnexion :",
-            error
-        );
-
+        console.error("Erreur de déconnexion :", error);
         throw error;
-
     }
-
 }
 
 
@@ -117,23 +97,25 @@ export async function logout() {
 // ==============================
 
 export function waitForAuth() {
-
     return new Promise(resolve => {
+        const unsubscribe = onAuthStateChanged(
+            auth,
+            user => {
+                unsubscribe();
+                resolve(user);
+            },
+            error => {
+                unsubscribe();
 
-        const unsubscribe =
-            onAuthStateChanged(
-                auth,
-                user => {
+                console.warn(
+                    "État de connexion indisponible :",
+                    error
+                );
 
-                    unsubscribe();
-
-                    resolve(user);
-
-                }
-            );
-
+                resolve(auth.currentUser || null);
+            }
+        );
     });
-
 }
 
 
@@ -142,102 +124,331 @@ export function waitForAuth() {
 // ==============================
 
 export function getCurrentUser() {
-
     return auth.currentUser;
-
 }
 
 
 // ==============================
-// CHARGER LES DECKS DE FIRESTORE
+// RÉFÉRENCE DU DOCUMENT UTILISATEUR
+// ==============================
+
+function userDocument() {
+    const user = auth.currentUser;
+
+    if (!user) {
+        return null;
+    }
+
+    return doc(db, "users", user.uid);
+}
+
+
+// ==============================
+// CHARGER LES DECKS DU CLOUD
 // ==============================
 
 export async function loadCloudDecks() {
+    const userRef = userDocument();
 
-    const user =
-        auth.currentUser;
-
-
-    if (!user) {
-
+    if (!userRef) {
         return null;
-
     }
 
-
-    const userRef =
-        doc(
-            db,
-            "users",
-            user.uid
-        );
-
-
-    const snapshot =
-        await getDoc(userRef);
-
+    const snapshot = await getDoc(userRef);
 
     if (!snapshot.exists()) {
-
         return null;
-
     }
 
+    const data = snapshot.data();
 
-    const data =
-        snapshot.data();
-
-
-    if (!Array.isArray(data.decks)) {
-
-        return [];
-
-    }
-
-
-    return data.decks;
-
+    return Array.isArray(data.decks)
+        ? data.decks
+        : [];
 }
 
 
 // ==============================
-// SAUVEGARDER LES DECKS
+// SAUVEGARDE CLOUD DIFFÉRÉE
 // ==============================
 
-export async function saveDecksToCloud(
-    decks
-) {
+let pendingDecks = null;
+let saveTimer = null;
+let flushing = false;
+let lastSaveError = null;
 
-    const user =
-        auth.currentUser;
-
-
-    if (!user) {
-
+export function saveDecksToCloud(decks) {
+    if (!auth.currentUser || !Array.isArray(decks)) {
         return;
-
     }
 
+    // Copie indépendante pour éviter que les données changent
+    // pendant que la sauvegarde est en attente.
+    pendingDecks = JSON.parse(JSON.stringify(decks));
 
-    const userRef =
-        doc(
-            db,
-            "users",
-            user.uid
+    if (saveTimer) {
+        clearTimeout(saveTimer);
+    }
+
+    // Regroupe les modifications rapides en une seule sauvegarde.
+    saveTimer = setTimeout(() => {
+        saveTimer = null;
+        void flushCloudSave();
+    }, 500);
+}
+
+
+// ==============================
+// ENVOYER LES DONNÉES EN ARRIÈRE-PLAN
+// ==============================
+
+async function flushCloudSave() {
+    if (
+        flushing ||
+        !pendingDecks ||
+        !auth.currentUser
+    ) {
+        return;
+    }
+
+    flushing = true;
+
+    const decksSnapshot = pendingDecks;
+    pendingDecks = null;
+
+    try {
+        const userRef = userDocument();
+
+        if (userRef) {
+            await setDoc(
+                userRef,
+                {
+                    decks: decksSnapshot,
+                    updatedAt: serverTimestamp()
+                },
+                {
+                    merge: true
+                }
+            );
+
+            lastSaveError = null;
+
+            console.info(
+                "Progression synchronisée avec Firestore."
+            );
+        }
+    } catch (error) {
+        lastSaveError = error;
+
+        // Garder la sauvegarde pour réessayer plus tard.
+        if (!pendingDecks) {
+            pendingDecks = decksSnapshot;
+        }
+
+        console.warn(
+            "Sauvegarde cloud en attente :",
+            error
+        );
+    } finally {
+        flushing = false;
+
+        if (
+            pendingDecks &&
+            auth.currentUser &&
+            !saveTimer
+        ) {
+            saveTimer = setTimeout(() => {
+                saveTimer = null;
+                void flushCloudSave();
+            }, lastSaveError ? 2500 : 100);
+        }
+    }
+}
+
+
+// ==============================
+// RÉESSAYER QUAND INTERNET REVIENT
+// ==============================
+
+window.addEventListener("online", () => {
+    if (pendingDecks && !saveTimer) {
+        saveTimer = setTimeout(() => {
+            saveTimer = null;
+            void flushCloudSave();
+        }, 50);
+    }
+});
+
+
+// ==============================
+// FUSION DES DECKS
+// ==============================
+
+function cardKey(card, index) {
+    if (card && card.id != null) {
+        return `id:${card.id}`;
+    }
+
+    // Compatibilité avec les anciennes cartes sans identifiant.
+    return [
+        "legacy",
+        String(card?.word ?? ""),
+        String(card?.answer ?? ""),
+        index
+    ].join(":");
+}
+
+
+function chooseCard(localCard, cloudCard) {
+    if (!localCard) {
+        return { ...cloudCard };
+    }
+
+    if (!cloudCard) {
+        return { ...localCard };
+    }
+
+    const localTime = Number(localCard.updatedAt || 0);
+    const cloudTime = Number(cloudCard.updatedAt || 0);
+
+    // En cas de doute, les données locales sont conservées.
+    if (cloudTime > localTime) {
+        return { ...localCard, ...cloudCard };
+    }
+
+    return { ...cloudCard, ...localCard };
+}
+
+
+function mergeDeckLists(localDecks, cloudDecks) {
+    if (!Array.isArray(localDecks)) {
+        localDecks = [];
+    }
+
+    if (!Array.isArray(cloudDecks)) {
+        cloudDecks = [];
+    }
+
+    const byName = new Map();
+
+    // Charger d'abord les decks du cloud.
+    for (const cloudDeck of cloudDecks) {
+        if (
+            !cloudDeck ||
+            typeof cloudDeck.name !== "string"
+        ) {
+            continue;
+        }
+
+        byName.set(
+            cloudDeck.name,
+            {
+                ...cloudDeck,
+                cards: Array.isArray(cloudDeck.cards)
+                    ? [...cloudDeck.cards]
+                    : []
+            }
+        );
+    }
+
+    // Ajouter les decks locaux et fusionner les cartes.
+    for (const localDeck of localDecks) {
+        if (
+            !localDeck ||
+            typeof localDeck.name !== "string"
+        ) {
+            continue;
+        }
+
+        const cloudDeck = byName.get(localDeck.name);
+
+        if (!cloudDeck) {
+            byName.set(
+                localDeck.name,
+                {
+                    ...localDeck,
+                    cards: Array.isArray(localDeck.cards)
+                        ? [...localDeck.cards]
+                        : []
+                }
+            );
+
+            continue;
+        }
+
+        const cloudCards = Array.isArray(cloudDeck.cards)
+            ? cloudDeck.cards
+            : [];
+
+        const localCards = Array.isArray(localDeck.cards)
+            ? localDeck.cards
+            : [];
+
+        const cloudByKey = new Map();
+
+        cloudCards.forEach((card, index) => {
+            cloudByKey.set(
+                cardKey(card, index),
+                card
+            );
+        });
+
+        const mergedCards = [];
+        const seen = new Set();
+
+        localCards.forEach((card, index) => {
+            const key = cardKey(card, index);
+            const cloudCard = cloudByKey.get(key);
+
+            mergedCards.push(
+                chooseCard(card, cloudCard)
+            );
+
+            seen.add(key);
+        });
+
+        cloudCards.forEach((card, index) => {
+            const key = cardKey(card, index);
+
+            if (!seen.has(key)) {
+                mergedCards.push({ ...card });
+            }
+        });
+
+        byName.set(
+            localDeck.name,
+            {
+                ...cloudDeck,
+                ...localDeck,
+                cards: mergedCards
+            }
+        );
+    }
+
+    return [...byName.values()];
+}
+
+
+// ==============================
+// ENREGISTREMENT LOCAL
+// ==============================
+
+function writeLocalDecks(decks) {
+    try {
+        localStorage.setItem(
+            "decks",
+            JSON.stringify(decks)
         );
 
+        return true;
+    } catch (error) {
+        console.error(
+            "Impossible d'enregistrer les decks localement :",
+            error
+        );
 
-    await setDoc(
-        userRef,
-        {
-            decks: decks,
-            updatedAt: serverTimestamp()
-        },
-        {
-            merge: true
-        }
-    );
-
+        return false;
+    }
 }
 
 
@@ -245,159 +456,104 @@ export async function saveDecksToCloud(
 // SYNCHRONISATION INITIALE
 // ==============================
 
-export async function syncLocalDecksWithCloud() {
+let syncPromise = null;
 
-    const user =
-        await waitForAuth();
+export async function syncLocalDecksWithCloud(options = {}) {
+    const user = await waitForAuth();
 
-
-    /*
-     * Si personne n'est connecté,
-     * on laisse simplement l'application
-     * fonctionner avec localStorage.
-     */
+    window.cloudSyncReady = true;
 
     if (!user) {
-
-        window.cloudSyncReady = true;
-
         return;
-
     }
 
-
-    console.log(
-        "Synchronisation avec Firestore..."
-    );
-
-
-    /*
-     * On sauvegarde une copie locale avant
-     * toute modification éventuelle.
-     */
-
-    const localDecks =
-        localStorage.getItem("decks");
-
-
-    if (localDecks) {
-
-        localStorage.setItem(
-            "decks_backup_before_cloud_sync",
-            localDecks
-        );
-
+    if (syncPromise) {
+        return syncPromise;
     }
 
+    const task = (async () => {
+        try {
+            const before = localStorage.getItem("decks");
 
-    try {
-
-        const cloudDecks =
-            await loadCloudDecks();
-
-
-        /*
-         * CAS 1 :
-         *
-         * Firestore possède déjà des decks.
-         *
-         * On utilise alors les données cloud
-         * comme source principale.
-         */
-
-        if (cloudDecks !== null) {
-
-            localStorage.setItem(
-                "decks",
-                JSON.stringify(cloudDecks)
-            );
-
-
-            console.log(
-                "Decks chargés depuis Firestore."
-            );
-
-        }
-
-
-        /*
-         * CAS 2 :
-         *
-         * Aucun document Firestore n'existe encore.
-         *
-         * On envoie les données locales.
-         */
-
-        else {
-
-            let decksToUpload = [];
-
-
-            if (localDecks) {
-
-                try {
-
-                    decksToUpload =
-                        JSON.parse(localDecks);
-
-                } catch (error) {
-
-                    console.error(
-                        "Impossible de lire les decks locaux :",
-                        error
-                    );
-
-                }
-
+            if (before) {
+                localStorage.setItem(
+                    "decks_backup_before_cloud_sync",
+                    before
+                );
             }
 
+            const cloudDecks = await loadCloudDecks();
 
-            await saveDecksToCloud(
-                decksToUpload
+            // Relire les données locales après l'attente réseau :
+            // elles ont pu changer pendant ce temps.
+            const latestLocalRaw = localStorage.getItem("decks");
+
+            let localDecks = [];
+
+            try {
+                localDecks = latestLocalRaw
+                    ? JSON.parse(latestLocalRaw)
+                    : [];
+            } catch (error) {
+                console.warn(
+                    "Impossible de lire les decks locaux :",
+                    error
+                );
+            }
+
+            let merged;
+
+            if (cloudDecks === null) {
+                merged = Array.isArray(localDecks)
+                    ? localDecks
+                    : [];
+            } else {
+                merged = mergeDeckLists(
+                    localDecks,
+                    cloudDecks
+                );
+            }
+
+            writeLocalDecks(merged);
+
+            // L'envoi cloud est différé et ne bloque pas l'interface.
+            saveDecksToCloud(merged);
+
+            console.info(
+                "Fusion locale/cloud terminée."
             );
-
-
-            console.log(
-                "Decks locaux envoyés vers Firestore."
+        } catch (error) {
+            console.warn(
+                "Synchronisation indisponible. Les decks locaux restent utilisables :",
+                error
             );
-
         }
+    })();
 
+    syncPromise = task;
 
-        window.cloudSyncReady = true;
-
-
-        console.log(
-            "Synchronisation terminée."
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "Erreur pendant la synchronisation Firestore :",
-            error
-        );
-
-
-        /*
-         * En cas de problème avec Firestore,
-         * on ne bloque pas l'application.
-         *
-         * Les données locales restent utilisables.
-         */
-
-        window.cloudSyncReady = true;
-
+    if (options.waitForCompletion === true) {
+        await task;
+    } else {
+        // Ne pas bloquer indéfiniment l'ouverture sur un réseau lent.
+        await Promise.race([
+            task,
+            new Promise(resolve => {
+                setTimeout(resolve, 1500);
+            })
+        ]);
     }
 
+    task.finally(() => {
+        if (syncPromise === task) {
+            syncPromise = null;
+        }
+    });
 }
 
 
 // ==============================
-// SAUVEGARDE CLOUD ACCESSIBLE
-// DEPUIS LES AUTRES SCRIPTS
+// SAUVEGARDE ACCESSIBLE AUX AUTRES SCRIPTS
 // ==============================
 
-window.saveDecksToCloud =
-    saveDecksToCloud;
+window.saveDecksToCloud = saveDecksToCloud;

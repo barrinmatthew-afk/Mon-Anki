@@ -144,58 +144,43 @@ const cards =
         : [];
 
 
-// ==============================
-// SAUVEGARDE
-// ==============================
 
-async function saveDecks(
-    decksToSave
-) {
+ // ==============================
+ // SAUVEGARDE — LOCAL D'ABORD
+ // ==============================
 
-    /*
-     * 1. Sauvegarde locale immédiate.
-     */
+function saveDecks(decksToSave) {
+    // 1. Enregistrer immédiatement sur cet appareil.
+    try {
+        localStorage.setItem(
+            "decks",
+            JSON.stringify(decksToSave)
+        );
+    } catch (error) {
+        console.error(
+            "Erreur de sauvegarde locale :",
+            error
+        );
 
-    localStorage.setItem(
-        "decks",
-        JSON.stringify(
-            decksToSave
-        )
-    );
+        return false;
+    }
 
-
-    /*
-     * 2. Sauvegarde Firestore.
-     *
-     * On attend réellement la fin
-     * de cette sauvegarde.
-     */
-
-    if (
-        typeof window.saveDecksToCloud ===
-        "function"
-    ) {
-
+    // 2. Déclencher la sauvegarde cloud sans l'attendre.
+    // L'affichage des cartes ne dépend donc pas du réseau.
+    if (typeof window.saveDecksToCloud === "function") {
         try {
-
-            await window.saveDecksToCloud(
-                decksToSave
-            );
-
-            console.log(
-                "Progression sauvegardée dans Firestore."
-            );
-
+            window.saveDecksToCloud(decksToSave);
         } catch (error) {
-
-            console.error(
-                "Erreur de synchronisation Firestore :",
+            console.warn(
+                "La sauvegarde cloud sera à réessayer :",
                 error
             );
-
         }
     }
+
+    return true;
 }
+
 
 
 // ==============================
@@ -691,10 +676,22 @@ function displayCard() {
 // ==============================
 
 function updateProgress() {
-    const total = queue.length;
+
+    const total =
+        queue.length;
+
+
+    const position =
+        total === 0
+            ? 0
+            : 1;
+
 
     progressElement.textContent =
-        `${total} carte${total > 1 ? "s" : ""} restante${total > 1 ? "s" : ""}`;
+        `${position} carte restante${
+            total > 1 ? "s" : ""
+        }`;
+
 }
 
 
