@@ -164,9 +164,9 @@ function renderDeckElement(
 
     deckElement.className =
         "deck";
-    // Seuls les decks principaux portent la bordure colorée.
+    // Seuls les decks principaux ont tout le contour coloré.
     if (!deck.name.includes("::")) {
-        deckElement.style.borderLeft = `5px solid ${getDeckColor(deck)}`;
+        deckElement.style.border = `2px solid ${getDeckColor(deck)}`;
     }
 
 
@@ -653,7 +653,7 @@ function displayForecast() {
 
     chart.innerHTML = "";
     if (!forecast.some(item => item.count > 0)) {
-        chart.innerHTML = '<div class="forecast-empty">Aucune carte prévue pour les heures restantes de cette journée.</div>';
+        chart.innerHTML = '<div class="forecast-empty">Aucune révision programmée dans les 24 prochaines heures.</div>';
     }
 
     const max = Math.max(...forecast.map(item => item.count), 1);
