@@ -164,6 +164,42 @@
         }
 
 
+
+        #card-search-section {
+            margin: 0 0 22px;
+            padding: 14px 16px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            background: #fff;
+        }
+        #card-search-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+        #card-search-input {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 11px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font: inherit;
+        }
+        #card-search-results { margin-top: 10px; }
+        .card-search-result {
+            display: block;
+            width: 100%;
+            margin: 7px 0 0;
+            padding: 10px 12px;
+            text-align: left;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: #f8fafc;
+        }
+        .card-search-result strong { display: block; }
+        .card-search-result small { display: block; margin-top: 4px; color: #64748b; }
+        .card-search-empty { color: #64748b; margin: 8px 0 0; }
+
         .deck {
 
             border: 1px solid #ccc;
@@ -779,6 +815,12 @@
 
 </div>
 
+
+<section id="card-search-section" aria-label="Rechercher des cartes">
+    <label for="card-search-input">🔎 Rechercher une carte</label>
+    <input id="card-search-input" type="search" placeholder="Mot, traduction, question…" autocomplete="off">
+    <div id="card-search-results" aria-live="polite"></div>
+</section>
 
 <div id="decks-container"></div>
 
