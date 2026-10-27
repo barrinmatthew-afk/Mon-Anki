@@ -197,6 +197,21 @@ if (!deck) {
 
 }
 
+// La couleur se règle uniquement depuis la gestion du deck principal.
+const deckColorSection = document.getElementById("deck-color-section");
+const deckColorPicker = document.getElementById("deck-color-picker");
+const isMainDeck = !deck.name.includes("::");
+
+if (isMainDeck && deckColorSection && deckColorPicker) {
+    deckColorSection.style.display = "block";
+    deckColorPicker.value = /^#[0-9a-f]{6}$/i.test(deck.color || "") ? deck.color : "#2563eb";
+    deckColorPicker.addEventListener("input", () => {
+        deck.color = deckColorPicker.value;
+        saveDecks(decks);
+        syncStatus.textContent = "✓ Couleur du deck enregistrée.";
+    });
+}
+
 
 /* =========================
    REDIMENSIONNER UNE IMAGE
