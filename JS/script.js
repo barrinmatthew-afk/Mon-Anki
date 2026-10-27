@@ -85,30 +85,39 @@ function loadDecks() {
 }
 
 
-function saveDecks(decks) {
 
+function saveDecks(decks) {
     localStorage.setItem(
         "decks",
         JSON.stringify(decks)
     );
 
+    // Prévenir l'interface que les données locales ont changé.
+    window.dispatchEvent(
+        new CustomEvent("decksUpdated", {
+            detail: { source: "local" }
+        })
+    );
 
-    if (window.saveDecksToCloud) {
-
-        window.saveDecksToCloud(
-            decks
-        ).catch(error => {
-
+    if (typeof window.saveDecksToCloud === "function") {
+        try {
+            Promise.resolve(
+                window.saveDecksToCloud(decks)
+            ).catch(error => {
+                console.error(
+                    "Impossible de sauvegarder les decks dans Firestore :",
+                    error
+                );
+            });
+        } catch (error) {
             console.error(
-                "Impossible de sauvegarder les decks dans Firestore :",
+                "Erreur lors de la sauvegarde cloud :",
                 error
             );
-
-        });
-
+        }
     }
-
 }
+
 
 
 /* =========================
@@ -1334,3 +1343,17 @@ export function initializeApp() {
     );
 
 }
+
+window.addEventListener("decksUpdated", () => {
+    displayDecks();
+    displayForecast();
+});
+
+// Actualiser aussi si une autre page ou un autre onglet
+// modifie les données locales du même site.
+window.addEventListener("storage", event => {
+    if (event.key === "decks") {
+        displayDecks();
+        displayForecast();
+    }
+});

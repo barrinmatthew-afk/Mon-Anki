@@ -21,7 +21,8 @@ import {
     doc,
     getDoc,
     setDoc,
-    serverTimestamp
+    serverTimestamp,
+    onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
 
@@ -177,25 +178,32 @@ let saveTimer = null;
 let flushing = false;
 let lastSaveError = null;
 
+
 export function saveDecksToCloud(decks) {
+    // Toujours renvoyer une Promise pour que les appels
+    // .catch() dans script.js ne provoquent plus d'erreur.
     if (!auth.currentUser || !Array.isArray(decks)) {
-        return;
+        return Promise.resolve(false);
     }
 
-    // Copie indépendante pour éviter que les données changent
-    // pendant que la sauvegarde est en attente.
+    // Copie indépendante des données à sauvegarder.
     pendingDecks = JSON.parse(JSON.stringify(decks));
 
     if (saveTimer) {
         clearTimeout(saveTimer);
     }
 
-    // Regroupe les modifications rapides en une seule sauvegarde.
+    // Regrouper les changements rapides.
     saveTimer = setTimeout(() => {
         saveTimer = null;
         void flushCloudSave();
     }, 500);
+
+    // La demande est programmée ; les erreurs réelles de
+    // Firestore restent gérées dans flushCloudSave().
+    return Promise.resolve(true);
 }
+
 
 
 // ==============================
@@ -535,7 +543,7 @@ export async function syncLocalDecksWithCloud(options = {}) {
     if (options.waitForCompletion === true) {
         await task;
     } else {
-        // Ne pas bloquer indéfiniment l'ouverture sur un réseau lent.
+        // Ne pas bloquer indéfinimeant l'ouverture sur un réseau lent.
         await Promise.race([
             task,
             new Promise(resolve => {
@@ -557,3 +565,92 @@ export async function syncLocalDecksWithCloud(options = {}) {
 // ==============================
 
 window.saveDecksToCloud = saveDecksToCloud;
+
+
+/* ==============================
+   SYNCHRONISATION EN TEMPS RÉEL
+============================== */
+
+let realtimeUnsubscribe = null;
+
+onAuthStateChanged(auth, user => {
+    // Arrêter l'écoute précédente si le compte change.
+    if (realtimeUnsubscribe) {
+        realtimeUnsubscribe();
+        realtimeUnsubscribe = null;
+    }
+
+    if (!user) {
+        return;
+    }
+
+    const userRef = doc(db, "users", user.uid);
+
+    realtimeUnsubscribe = onSnapshot(
+        userRef,
+        snapshot => {
+            if (!snapshot.exists()) {
+                return;
+            }
+
+            const data = snapshot.data();
+
+            if (!Array.isArray(data.decks)) {
+                return;
+            }
+
+            let localDecks = [];
+
+            try {
+                localDecks = JSON.parse(
+                    localStorage.getItem("decks") || "[]"
+                );
+            } catch (error) {
+                console.error(
+                    "Impossible de lire les decks locaux :",
+                    error
+                );
+                return;
+            }
+
+            // Fusionner sans remplacer aveuglément les données locales.
+            const mergedDecks = mergeDeckLists(
+                localDecks,
+                data.decks
+            );
+
+            const changed =
+                JSON.stringify(mergedDecks) !==
+                JSON.stringify(localDecks);
+
+            if (!changed) {
+                return;
+            }
+
+            if (!writeLocalDecks(mergedDecks)) {
+                return;
+            }
+
+            // Prévenir les pages ouvertes que les données ont changé.
+            window.dispatchEvent(
+                new CustomEvent("decksUpdated", {
+                    detail: { source: "cloud" }
+                })
+            );
+
+            // Envoyer au cloud les éventuelles données locales
+            // qui manquaient dans la version distante.
+            saveDecksToCloud(mergedDecks);
+
+            console.info(
+                "Decks actualisés depuis la synchronisation."
+            );
+        },
+        error => {
+            console.error(
+                "Erreur de synchronisation en temps réel :",
+                error
+            );
+        }
+    );
+});
