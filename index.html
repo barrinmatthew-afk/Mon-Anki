@@ -15,6 +15,124 @@
 
     <style>
 
+        body.sidebar-open {
+            overflow: hidden;
+        }
+
+        .app-topbar {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+        }
+
+        .sidebar-open {
+            margin: 0;
+            padding: 9px 12px;
+            font-size: 22px;
+            line-height: 1;
+            border: 1px solid #d1d5db;
+            border-radius: 9px;
+            background: #fff;
+        }
+
+        .app-sidebar {
+            position: fixed;
+            z-index: 1001;
+            inset: 0 auto 0 0;
+            width: min(340px, calc(100vw - 42px));
+            box-sizing: border-box;
+            padding: 22px;
+            overflow-y: auto;
+            background: #fff;
+            box-shadow: 8px 0 28px rgba(0,0,0,0.18);
+            transform: translateX(-105%);
+            transition: transform 0.22s ease;
+        }
+
+        .app-sidebar.open {
+            transform: translateX(0);
+        }
+
+        .sidebar-backdrop {
+            position: fixed;
+            z-index: 1000;
+            inset: 0;
+            background: rgba(15,23,42,0.38);
+        }
+
+        .sidebar-backdrop[hidden] {
+            display: none;
+        }
+
+        .sidebar-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .sidebar-heading h2 {
+            margin: 0;
+        }
+
+        .sidebar-heading button {
+            margin: 0;
+            padding: 8px 11px;
+            font-size: 18px;
+        }
+
+        .sidebar-nav {
+            display: grid;
+            gap: 8px;
+            margin: 18px 0 24px;
+        }
+
+        .sidebar-nav a {
+            display: block;
+            padding: 13px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 9px;
+            background: #f8fafc;
+            color: #222;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .sidebar-nav a:hover {
+            background: #eef2f7;
+        }
+
+        #app-sidebar #create-deck-section {
+            margin-top: 0;
+            padding: 16px;
+        }
+
+        #app-sidebar #create-deck-section h2 {
+            margin-top: 0;
+            font-size: 20px;
+        }
+
+        #app-sidebar #new-deck-name {
+            box-sizing: border-box;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        #app-sidebar #create-deck {
+            width: 100%;
+            margin: 10px 0 0;
+        }
+
+        .app-topbar h1 {
+            margin-top: 0;
+        }
+
+        .app-topbar .subtitle {
+            margin-top: 0;
+        }
+
         body {
 
             font-family: Arial, sans-serif;
@@ -591,16 +709,38 @@
 <body>
 
 
-<h1>
-    Mon Anki
-</h1>
+<div class="app-topbar">
+    <button id="sidebar-open" class="sidebar-open" type="button" aria-label="Ouvrir le menu" aria-controls="app-sidebar" aria-expanded="false">☰</button>
+    <div>
+        <h1>Mon Anki</h1>
+        <p class="subtitle">Choisis un deck à étudier.</p>
+    </div>
+</div>
 
+<div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
+<aside id="app-sidebar" class="app-sidebar" aria-label="Menu principal" aria-hidden="true">
+    <div class="sidebar-heading">
+        <h2>Menu</h2>
+        <button id="sidebar-close" type="button" aria-label="Fermer le menu">✕</button>
+    </div>
 
-<p class="subtitle">
-    Choisis un deck à étudier.
-</p>
+    <nav class="sidebar-nav">
+        <a href="settings.html">⚙ Paramètres, compte et sauvegardes</a>
+        <a href="import.html">📥 Importer du vocabulaire</a>
+    </nav>
 
-<a id="settings-link" href="settings.html">⚙ Paramètres, compte et sauvegardes</a>
+    <section id="create-deck-section">
+        <h2>Créer un deck</h2>
+        <input
+            type="text"
+            id="new-deck-name"
+            placeholder="Nom du deck (ex. Néerlandais::Verbes)"
+            aria-label="Nom du nouveau deck"
+        >
+        <button id="create-deck" type="button">Créer le deck</button>
+        <p class="forecast-subtitle">Utilise « :: » pour créer un sous-deck, par exemple « Néerlandais::Verbes ».</p>
+    </section>
+</aside>
 
 
 <!-- =========================
@@ -654,48 +794,7 @@
 </div>
 
 
-<div id="create-deck-section">
 
-    <h2>
-        Créer un deck
-    </h2>
-
-
-    <input
-        type="text"
-        id="new-deck-name"
-        placeholder="Nom du deck (ex : Néerlandais::Verbes pour un sous-deck)"
-    >
-
-
-    <button id="create-deck">
-
-        Créer
-
-    </button>
-
-
-    <p class="forecast-subtitle">
-
-        Utilise "::" dans le nom pour créer un sous-deck,
-        par exemple "Néerlandais::Verbes".
-
-    </p>
-
-</div>
-
-
-<div class="main-actions">
-
-    <a href="import.html">
-
-        <button>
-            Importer du vocabulaire
-        </button>
-
-    </a>
-
-</div>
 
 
 <div id="sync-section">
@@ -758,6 +857,32 @@
 
 
 <script type="module">
+    // ==============================
+    // VOLET LATERAL
+    // ==============================
+    const sidebar = document.getElementById("app-sidebar");
+    const sidebarOpen = document.getElementById("sidebar-open");
+    const sidebarClose = document.getElementById("sidebar-close");
+    const sidebarBackdrop = document.getElementById("sidebar-backdrop");
+
+    function setSidebarOpen(open) {
+        sidebar?.classList.toggle("open", open);
+        document.body.classList.toggle("sidebar-open", open);
+        if (sidebar) sidebar.setAttribute("aria-hidden", String(!open));
+        if (sidebarOpen) sidebarOpen.setAttribute("aria-expanded", String(open));
+        if (sidebarBackdrop) sidebarBackdrop.hidden = !open;
+    }
+
+    sidebarOpen?.addEventListener("click", () => setSidebarOpen(true));
+    sidebarClose?.addEventListener("click", () => setSidebarOpen(false));
+    sidebarBackdrop?.addEventListener("click", () => setSidebarOpen(false));
+    document.addEventListener("keydown", event => {
+        if (event.key === "Escape") setSidebarOpen(false);
+    });
+    sidebar?.querySelectorAll("a").forEach(link => {
+        link.addEventListener("click", () => setSidebarOpen(false));
+    });
+
     // ==============================
     // MODE HORS LIGNE
     // ==============================
