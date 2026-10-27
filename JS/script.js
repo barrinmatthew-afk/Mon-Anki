@@ -295,7 +295,8 @@ function renderDeckTreeNode(node) {
     const toggle = document.createElement("button");
     toggle.type = "button";
     toggle.className = "deck-group-toggle";
-    toggle.setAttribute("aria-expanded", "true");
+    // Les groupes restent fermés à l'ouverture de l'application.
+    toggle.setAttribute("aria-expanded", "false");
 
     const dueCount = countDueInTree(node);
 
@@ -311,12 +312,13 @@ function renderDeckTreeNode(node) {
             <span class="deck-group-due">
                 ${dueText}
             </span>
-            <span class="deck-group-arrow">▼</span>
+            <span class="deck-group-arrow">▶</span>
         </span>
     `;
 
     const content = document.createElement("div");
     content.className = "deck-group-content";
+    content.hidden = true;
 
     // Si ce niveau correspond aussi à un deck réel,
     // on affiche ce deck avant ses sous-decks.
@@ -1198,16 +1200,8 @@ export function initializeApp() {
 
 }
 
-window.addEventListener("decksUpdated", () => {
-    displayDecks();
-    displayForecast();
-});
-
-// Actualiser aussi si une autre page ou un autre onglet
-// modifie les données locales du même site.
-window.addEventListener("storage", event => {
-    if (event.key === "decks") {
-        displayDecks();
-        displayForecast();
-    }
-});
+// L'affichage n'est plus reconstruit automatiquement à chaque petite
+// mise à jour de synchronisation : cela refermait les groupes pendant
+// que l'utilisateur naviguait. Les actions explicites (création,
+// suppression, importation et bouton de synchronisation) rafraîchissent
+// l'interface au moment voulu.
