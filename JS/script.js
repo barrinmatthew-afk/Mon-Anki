@@ -164,9 +164,11 @@ function renderDeckElement(
 
     deckElement.className =
         "deck";
-    // Seuls les decks principaux ont tout le contour coloré.
+    // Les decks principaux affichent leur couleur et un sélecteur.
     if (!deck.name.includes("::")) {
-        deckElement.style.border = `2px solid ${getDeckColor(deck)}`;
+        const deckColor = getDeckColor(deck);
+        deckElement.style.border = `2px solid ${deckColor}`;
+        deckElement.style.backgroundColor = `${deckColor}12`;
     }
 
 
@@ -196,6 +198,11 @@ function renderDeckElement(
 
 
             <div class="deck-actions">
+
+                ${!deck.name.includes("::") ? `<label class="deck-color-label" title="Modifier la couleur de ce deck">
+                    <span>Couleur</span>
+                    <input class="deck-color-picker" type="color" data-root-name="${escapeHTML(deck.name)}" value="${getDeckColor(deck)}" aria-label="Couleur du deck ${escapeHTML(deck.name)}">
+                </label>` : ""}
 
                 <button
                     class="study-button"
@@ -373,6 +380,16 @@ function renderDeckTreeNode(node, isRootGroup = true) {
     });
 
     header.appendChild(toggle);
+
+    // Sélecteur de couleur directement sur le groupe parent (ex. Droit).
+    const colorLabel = document.createElement("label");
+    colorLabel.className = "deck-color-label group-color-label";
+    colorLabel.title = "Modifier la couleur du groupe " + node.label;
+    colorLabel.innerHTML = `<span>Couleur</span><input class="deck-color-picker" type="color" data-root-name="${escapeHTML(node.label)}" aria-label="Couleur du groupe ${escapeHTML(node.label)}">`;
+    const groupColorInput = colorLabel.querySelector("input");
+    groupColorInput.value = getDeckColor(node.label);
+    header.appendChild(colorLabel);
+
     groupElement.appendChild(header);
     groupElement.appendChild(content);
 
@@ -420,13 +437,34 @@ function displayDecks() {
         .querySelectorAll(".deck-color-picker")
         .forEach(input => {
             input.addEventListener("input", () => {
-                const index = Number(input.dataset.index);
-                const decks = loadDecks();
-                if (!decks[index]) return;
+                const rootName = input.dataset.rootName;
+                if (!rootName) return;
 
-                decks[index].color = input.value;
-                saveDecks(decks);
-                // Met à jour uniquement la timeline : ne ferme pas les groupes ouverts.
+                // La couleur est associée au nom du deck/groupe parent,
+                // même si celui-ci n'est pas lui-même un deck avec des cartes.
+                const colors = JSON.parse(localStorage.getItem("deckColors") || "{}");
+                colors[rootName] = input.value;
+                localStorage.setItem("deckColors", JSON.stringify(colors));
+
+                // Garder aussi la propriété color du deck racine si elle existe,
+                // pour conserver la compatibilité avec les anciennes données.
+                const decks = loadDecks();
+                const rootDeck = decks.find(deck => deck.name === rootName);
+                if (rootDeck) {
+                    rootDeck.color = input.value;
+                    saveDecks(decks);
+                }
+
+                const group = input.closest(".deck-group");
+                if (group) {
+                    group.style.border = `2px solid ${input.value}`;
+                    group.style.backgroundColor = `${input.value}18`;
+                }
+                const deckCard = input.closest(".deck");
+                if (deckCard) {
+                    deckCard.style.border = `2px solid ${input.value}`;
+                    deckCard.style.backgroundColor = `${input.value}12`;
+                }
                 displayForecast();
             });
         });
@@ -612,6 +650,10 @@ function getDeckColor(deckOrName) {
     const decks = loadDecks();
     const name = typeof deckOrName === "object" ? deckOrName.name : String(deckOrName || "");
     const rootName = name.split("::")[0];
+    const colors = JSON.parse(localStorage.getItem("deckColors") || "{}");
+    if (/^#[0-9a-f]{6}$/i.test(colors[rootName] || "")) {
+        return colors[rootName];
+    }
     const rootDeck = decks.find(deck => deck.name === rootName);
     if (rootDeck && /^#[0-9a-f]{6}$/i.test(rootDeck.color || "")) {
         return rootDeck.color;
