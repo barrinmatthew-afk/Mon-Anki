@@ -733,13 +733,9 @@ function displayForecast() {
 
         const hour = document.createElement("div");
         hour.className = "forecast-hour";
+        // Afficher uniquement l'heure : pas de libellé « Demain » qui élargit la timeline.
         const timeLabel = date.toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" });
-                const today = new Date();
-                const isToday = date.getDate() === today.getDate() && date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
-                const tomorrow = new Date();
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                const isTomorrow = date.getDate() === tomorrow.getDate() && date.getMonth() === tomorrow.getMonth() && date.getFullYear() === tomorrow.getFullYear();
-                hour.textContent = isToday ? timeLabel : (isTomorrow ? "Demain " : date.toLocaleDateString("fr-BE", { day: "2-digit", month: "2-digit" }) + " ") + timeLabel;
+        hour.textContent = timeLabel;
 
         const detail = item.deckCounts.length
             ? item.deckCounts.map(deck => `${deck.name}: ${deck.count} carte${deck.count > 1 ? "s" : ""}`).join("\\n")
