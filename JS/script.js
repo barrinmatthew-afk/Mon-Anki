@@ -193,6 +193,17 @@ function renderDeckElement(
 
             <div class="deck-actions">
 
+                <label class="deck-color-control" title="Choisir la couleur de ce deck">
+                    <span>Couleur</span>
+                    <input
+                        type="color"
+                        class="deck-color-picker"
+                        data-index="${index}"
+                        value="${getDeckColor(deck)}"
+                        aria-label="Couleur du deck ${escapeHTML(displayName)}"
+                    >
+                </label>
+
                 <button
                     class="study-button"
                     data-index="${index}"
@@ -397,6 +408,24 @@ function displayDecks() {
     });
 
     /* =========================
+       COULEURS PERSONNALISÉES DES DECKS
+    ========================= */
+    container
+        .querySelectorAll(".deck-color-picker")
+        .forEach(input => {
+            input.addEventListener("input", () => {
+                const index = Number(input.dataset.index);
+                const decks = loadDecks();
+                if (!decks[index]) return;
+
+                decks[index].color = input.value;
+                saveDecks(decks);
+                // Met à jour uniquement la timeline : ne ferme pas les groupes ouverts.
+                displayForecast();
+            });
+        });
+
+    /* =========================
        BOUTONS ÉTUDIER
     ========================= */
 
@@ -564,9 +593,17 @@ function createDeck() {
    FORECAST
 ========================= */
 
-function getDeckColor(deckName) {
-    // Couleur déterministe : le même deck garde sa couleur sur tous les appareils.
-    const palette = ["#2563eb","#0f766e","#c2410c","#7c3aed","#be185d","#4d7c0f","#0369a1","#a16207","#475569","#0e7490","#9333ea","#b91c1c"];
+function getDeckColor(deckOrName) {
+    // Une couleur choisie par l'utilisateur est prioritaire.
+    if (deckOrName && typeof deckOrName === "object" && /^#[0-9a-f]{6}$/i.test(deckOrName.color || "")) {
+        return deckOrName.color;
+    }
+
+    // Couleur par défaut stable si aucune couleur personnalisée n'a été choisie.
+    const deckName = typeof deckOrName === "object"
+        ? deckOrName.name
+        : deckOrName;
+    const palette = ["#2563eb", "#0f766e", "#c2410c", "#7c3aed", "#be185d", "#4d7c0f", "#0369a1", "#a16207", "#475569", "#0e7490", "#9333ea", "#b91c1c"];
     let hash = 0;
     for (const char of String(deckName || "")) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
     return palette[hash % palette.length];
@@ -576,20 +613,36 @@ function getDeckColor(deckName) {
 function getForecast() {
     const decks = loadDecks();
     const now = Date.now();
-    const hourMs = 60 * 60 * 1000;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     const forecast = [];
 
-    for (let i = 0; i < 24; i++) {
-        const start = now + i * hourMs;
-        const end = start + hourMs;
+    // Les 24 créneaux sont toujours les heures fixes de la journée : 00:00 à 23:00.
+    for (let hour = 0; hour < 24; hour++) {
+        const startDate = new Date(today);
+        startDate.setHours(hour, 0, 0, 0);
+        const endDate = new Date(startDate);
+        endDate.setHours(hour + 1, 0, 0, 0);
+        const start = startDate.getTime();
+        const end = endDate.getTime();
         const deckCounts = [];
 
         decks.forEach(deck => {
             const cards = Array.isArray(deck.cards) ? deck.cards : [];
-            const count = cards.filter(card =>
-                Number(card.nextReview) > start && Number(card.nextReview) <= end
-            ).length;
-            if (count > 0) deckCounts.push({ name: deck.name, count, color: getDeckColor(deck.name) });
+            const count = cards.filter(card => {
+                const reviewTime = Number(card.nextReview);
+                return Number.isFinite(reviewTime) &&
+                    reviewTime > now &&
+                    reviewTime >= start &&
+                    reviewTime < end;
+            }).length;
+            if (count > 0) {
+                deckCounts.push({
+                    name: deck.name,
+                    count,
+                    color: getDeckColor(deck)
+                });
+            }
         });
 
         forecast.push({
@@ -618,7 +671,7 @@ function displayForecast() {
             item.className = "forecast-legend-item";
             const swatch = document.createElement("span");
             swatch.className = "forecast-legend-swatch";
-            swatch.style.backgroundColor = getDeckColor(deck.name);
+            swatch.style.backgroundColor = getDeckColor(deck);
             const name = document.createElement("span");
             name.textContent = deck.name;
             item.append(swatch, name);
@@ -628,8 +681,7 @@ function displayForecast() {
 
     chart.innerHTML = "";
     if (!forecast.some(item => item.count > 0)) {
-        chart.innerHTML = '<div class="forecast-empty">Aucune carte prévue dans les prochaines 24 heures.</div>';
-        return;
+        chart.innerHTML = '<div class="forecast-empty">Aucune carte prévue pour les heures restantes de cette journée.</div>';
     }
 
     const max = Math.max(...forecast.map(item => item.count), 1);
@@ -662,9 +714,9 @@ function displayForecast() {
         hour.textContent = date.toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" });
 
         const detail = item.deckCounts.length
-            ? item.deckCounts.map(deck => `${deck.name}: ${deck.count} carte${deck.count > 1 ? "s" : ""}`).join("\n")
+            ? item.deckCounts.map(deck => `${deck.name}: ${deck.count} carte${deck.count > 1 ? "s" : ""}`).join("\\n")
             : "Aucune carte prévue";
-        column.title = `${hour.textContent} — ${item.count} carte${item.count > 1 ? "s" : ""}\n${detail}`;
+        column.title = `${hour.textContent} — ${item.count} carte${item.count > 1 ? "s" : ""}\\n${detail}`;
         column.setAttribute("aria-label", column.title);
         column.tabIndex = 0;
 
