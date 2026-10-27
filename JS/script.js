@@ -164,7 +164,10 @@ function renderDeckElement(
 
     deckElement.className =
         "deck";
-    deckElement.style.borderLeft = `5px solid ${getDeckColor(deck)}`;
+    // Seuls les decks principaux portent la bordure colorée.
+    if (!deck.name.includes("::")) {
+        deckElement.style.borderLeft = `5px solid ${getDeckColor(deck)}`;
+    }
 
 
     const dueText =
@@ -632,17 +635,15 @@ function getForecast() {
 
         decks.forEach(deck => {
             const cards = Array.isArray(deck.cards) ? deck.cards : [];
-            const currentHourStart = new Date(now);
-            currentHourStart.setMinutes(0, 0, 0);
-            const currentHour = start === currentHourStart.getTime();
             const count = cards.filter(card => {
                 const reviewTime = Number(card.nextReview);
-                // Les cartes déjà dues (nextReview = 0 ou date passée)
-                // sont comptées dans l'heure actuelle.
-                if (!Number.isFinite(reviewTime) || reviewTime <= now) {
-                    return currentHour;
-                }
-                return reviewTime >= start && reviewTime < end;
+
+                // Une carte déjà due ou nouvelle n'est pas une révision future.
+                // On ne la place donc pas artificiellement dans un créneau horaire.
+                return Number.isFinite(reviewTime) &&
+                    reviewTime > now &&
+                    reviewTime >= start &&
+                    reviewTime < end;
             }).length;
             if (count > 0) {
                 deckCounts.push({
