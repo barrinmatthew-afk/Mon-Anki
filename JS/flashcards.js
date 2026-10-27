@@ -1589,6 +1589,8 @@ async function rateCard(
         rating
     );
 
+    currentCard.updatedAt = Date.now();
+
 
     /*
      * IMPORTANT :
