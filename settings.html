@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paramètres — Mon Anki</title>
+<style>
+* { box-sizing: border-box; }
+body { font-family: Arial, sans-serif; max-width: 800px; margin: 32px auto; padding: 0 18px; color: #222; }
+h1 { margin-bottom: 6px; }
+.subtitle { color: #666; margin-top: 0; margin-bottom: 24px; }
+section { border: 1px solid #ddd; border-radius: 12px; padding: 20px; margin: 18px 0; }
+h2 { margin-top: 0; }
+button, .back-link { display: inline-block; padding: 10px 14px; margin: 5px 6px 5px 0; border: 1px solid #ccc; border-radius: 7px; background: #fff; color: #222; cursor: pointer; text-decoration: none; font: inherit; }
+button:hover, .back-link:hover { background: #f2f2f2; }
+button:disabled { opacity: .6; cursor: wait; }
+.status { color: #555; min-height: 1.3em; overflow-wrap: anywhere; }
+input[type=file] { display:none; }
+.note { color: #666; font-size: 14px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<a class="back-link" href="index.html">← Retour aux decks</a>
+<h1>Paramètres</h1>
+<p class="subtitle">Compte, synchronisation et sauvegardes de Mon Anki.</p>
+
+<section>
+<h2>Compte et synchronisation</h2>
+<p id="user-info" class="status">Vérification du compte…</p>
+<button id="login-button" hidden>🔐 Se connecter avec Google</button>
+<button id="logout-button" hidden>🚪 Se déconnecter</button>
+<button id="sync-button">↻ Actualiser / synchroniser</button>
+<p id="sync-status" class="status" aria-live="polite"></p>
+<p class="note">La synchronisation utilise le compte Google. Pour récupérer les changements faits sur un autre appareil, utilise le bouton de synchronisation.</p>
+</section>
+
+<section>
+<h2>Sauvegardes</h2>
+<p>Garde une copie complète de tes decks et de ta progression, ou exporte seulement le contenu des cartes.</p>
+<button id="export-button">💾 Exporter mes decks (avec progression)</button>
+<button id="export-content-button">📚 Exporter les decks sans progression</button>
+<button id="import-trigger-button">📂 Importer une sauvegarde</button>
+<input id="import-file-input" type="file" accept="application/json">
+<p id="import-status" class="status" aria-live="polite"></p>
+<p class="note">L’import ajoute les decks et cartes absents ; il ne remplace pas les cartes déjà présentes. Conserve une exportation complète avant toute manipulation importante.</p>
+</section>
+
+<script type="module">
+const $ = id => document.getElementById(id);
+function getDecks() {
+    try {
+        const value = JSON.parse(localStorage.getItem("decks") || "[]");
+        return Array.isArray(value) ? value : [];
+    } catch { return []; }
+}
+function downloadJSON(data, filenamePrefix) {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filenamePrefix + "-" + new Date().toISOString().slice(0, 10) + ".json";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+$("export-button").addEventListener("click", () => downloadJSON(getDecks(), "mon-anki-sauvegarde"));
+$("export-content-button").addEventListener("click", () => {
+    const progressFields = new Set(["state", "step", "interval", "nextReview", "reps", "level"]);
+    const contentOnly = getDecks().map(deck => ({
+        ...deck,
+        cards: (Array.isArray(deck.cards) ? deck.cards : []).map(card => {
+            const result = { ...card };
+            progressFields.forEach(field => delete result[field]);
+            return result;
+        })
+    }));
+    downloadJSON(contentOnly, "mon-anki-decks-sans-progression");
+});
+$("import-trigger-button").addEventListener("click", () => $("import-file-input").click());
+$("import-file-input").addEventListener("change", () => {
+    const file = $("import-file-input").files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+        let imported;
+        try { imported = JSON.parse(reader.result); }
+        catch { $("import-status").textContent = "Le fichier n’est pas un JSON valide."; return; }
+        if (!Array.isArray(imported) || imported.some(deck => !deck || typeof deck.name !== "string" || !Array.isArray(deck.cards))) {
+            $("import-status").textContent = "Format invalide : aucune modification effectuée.";
+            return;
+        }
+        const existing = getDecks();
+        let addedDecks = 0, addedCards = 0;
+        for (const incoming of imported) {
+            let deck = existing.find(item => item.name === incoming.name);
+            if (!deck) {
+                existing.push({ ...incoming, cards: [...incoming.cards] });
+                addedDecks++;
+                addedCards += incoming.cards.length;
+                continue;
+            }
+            const keys = new Set(deck.cards.map(card => JSON.stringify([card.word ?? "", card.answer ?? "", card.mode ?? ""])));
+            for (const card of incoming.cards) {
+                const key = JSON.stringify([card.word ?? "", card.answer ?? "", card.mode ?? ""]);
+                if (!keys.has(key)) { deck.cards.push(card); keys.add(key); addedCards++; }
+            }
+        }
+        localStorage.setItem("decks", JSON.stringify(existing));
+        if (typeof window.saveDecksToCloud === "function") {
+            try { await window.saveDecksToCloud(existing); } catch (error) { console.error(error); }
+        }
+        $("import-status").textContent = "Import terminé : " + addedDecks + " deck(s) ajouté(s), " + addedCards + " carte(s) ajoutée(s).";
+        $("import-file-input").value = "";
+    };
+    reader.readAsText(file);
+});
+
+import("./JS/firebase.js").then(async ({ loginWithGoogle, logout, waitForAuth, syncLocalDecksWithCloud }) => {
+    const updateAccount = async () => {
+        const user = await waitForAuth();
+        $("user-info").textContent = user ? "Connecté avec " + user.email : "Non connecté.";
+        $("login-button").hidden = !!user;
+        $("logout-button").hidden = !user;
+        return user;
+    };
+    await updateAccount();
+    $("login-button").addEventListener("click", async () => {
+        try { await loginWithGoogle(); await syncLocalDecksWithCloud({ waitForCompletion: true }); await updateAccount(); $("sync-status").textContent = "✓ Connexion et synchronisation terminées."; }
+        catch (error) { console.error(error); $("sync-status").textContent = "Connexion impossible. Réessaie."; }
+    });
+    $("logout-button").addEventListener("click", async () => {
+        try { await logout(); await updateAccount(); $("sync-status").textContent = "Déconnecté du compte Google."; }
+        catch (error) { console.error(error); $("sync-status").textContent = "Déconnexion impossible."; }
+    });
+    $("sync-button").addEventListener("click", async () => {
+        const button = $("sync-button");
+        button.disabled = true; button.textContent = "Synchronisation…";
+        try {
+            const user = await waitForAuth();
+            if (user) {
+                await syncLocalDecksWithCloud({ waitForCompletion: true });
+                $("sync-status").textContent = "✓ Synchronisation terminée. Les decks sont actualisés.";
+            } else {
+                $("sync-status").textContent = "Tu es en mode local : connecte-toi à Google pour synchroniser tes appareils.";
+            }
+            await updateAccount();
+        } catch (error) {
+            console.error(error); $("sync-status").textContent = "Échec de synchronisation. Vérifie ta connexion.";
+        } finally { button.disabled = false; button.textContent = "↻ Actualiser / synchroniser"; }
+    });
+}).catch(error => {
+    console.error(error);
+    $("user-info").textContent = "Service de compte indisponible pour le moment.";
+    $("sync-status").textContent = "Tu peux quand même utiliser les exportations locales.";
+});
+</script>
+</body>
+</html>
