@@ -691,22 +691,10 @@ function displayCard() {
 // ==============================
 
 function updateProgress() {
-
-    const total =
-        queue.length;
-
-
-    const position =
-        total === 0
-            ? 0
-            : 1;
-
+    const total = queue.length;
 
     progressElement.textContent =
-        `${position} carte restante${
-            total > 1 ? "s" : ""
-        }`;
-
+        `${total} carte${total > 1 ? "s" : ""} restante${total > 1 ? "s" : ""}`;
 }
 
 
