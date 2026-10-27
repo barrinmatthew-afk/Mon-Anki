@@ -176,27 +176,6 @@
 
         }
 
-        .deck-color-control {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 4px 6px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 12px;
-            color: #555;
-            white-space: nowrap;
-        }
-
-        .deck-color-picker {
-            width: 32px;
-            height: 28px;
-            padding: 0;
-            border: 0;
-            background: transparent;
-            cursor: pointer;
-        }
-
 
         button {
 
@@ -530,9 +509,6 @@
         /* Mise en page mobile et timeline colorée */
         #forecast-header { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
         #manual-sync-button { flex:0 0 auto; margin:0; border-color:#cbd5e1; font-weight:600; }
-        #forecast-legend { display:flex; flex-wrap:wrap; gap:8px 14px; margin-top:18px; }
-        .forecast-legend-item { display:inline-flex; align-items:center; gap:7px; font-size:13px; color:#444; }
-        .forecast-legend-swatch { width:11px; height:11px; border-radius:3px; flex:0 0 11px; }
         #forecast-chart { align-items:stretch; gap:5px; height:220px; overflow-x:auto; overscroll-behavior-x:contain; -webkit-overflow-scrolling:touch; padding:16px 6px 0; }
         .forecast-column { flex:0 0 34px; }
         .forecast-bar-container { align-items:flex-end; width:100%; }
@@ -548,8 +524,6 @@
             .deck-name { font-size:19px; overflow-wrap:anywhere; }
             .deck-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; width:100%; }
             .deck-actions button { width:100%; min-width:0; margin:0; padding:11px 8px; }
-            .deck-color-control { grid-column:1 / -1; justify-content:space-between; padding:6px 10px; font-size:14px; }
-            .deck-color-picker { width:42px; height:32px; }
             .deck-actions .delete-button { grid-column:1 / -1; }
             #new-deck-name { box-sizing:border-box; width:100%; max-width:100%; }
             #create-deck { width:100%; margin:8px 0 0; }
@@ -559,7 +533,6 @@
             .forecast-bar-container { height:150px; }
             .forecast-column { flex-basis:32px; }
             .forecast-hour { font-size:11px; }
-            #forecast-legend { gap:10px 12px; }
             .main-actions a, .main-actions button { display:block; width:100%; box-sizing:border-box; margin:8px 0; }
             #sync-section button { max-width:100%; margin:5px 0; }
             .deck-group-header { align-items:flex-start; gap:8px; }
@@ -627,13 +600,12 @@
         <div>
             <h2>Timeline des révisions</h2>
             <p class="forecast-subtitle">
-                Les heures restent fixes de 00:00 à 23:00. Choisis la couleur de chaque deck avec le sélecteur situé sur sa fiche.
+                Les heures restent fixes de 00:00 à 23:00. Les barres indiquent les cartes prévues pour révision au fil de la journée.
             </p>
         </div>
         <button id="manual-sync-button" type="button">↻ Actualiser / synchroniser</button>
     </div>
     <div id="forecast-chart" aria-label="Timeline des cartes à réviser"></div>
-    <div id="forecast-legend" aria-label="Couleurs des decks"></div>
 </div>
 
 
