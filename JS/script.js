@@ -308,6 +308,7 @@ function renderDeckTreeNode(node) {
     toggle.className = "deck-group-toggle";
     // Les groupes restent fermés à l'ouverture de l'application.
     toggle.setAttribute("aria-expanded", "false");
+    toggle.setAttribute("aria-label", "Ouvrir le groupe " + node.label);
 
     const dueCount = countDueInTree(node);
 
@@ -356,6 +357,10 @@ function renderDeckTreeNode(node) {
         toggle.setAttribute(
             "aria-expanded",
             String(!isExpanded)
+        );
+        toggle.setAttribute(
+            "aria-label",
+            (isExpanded ? "Ouvrir le groupe " : "Fermer le groupe ") + node.label
         );
 
         content.hidden = isExpanded;
