@@ -1277,28 +1277,20 @@ export function initializeApp() {
         cardSearchInput.addEventListener("input", () => {
             const query = normalizeSearch(cardSearchInput.value);
             cardSearchResults.replaceChildren();
-
             if (!query) return;
 
             const matches = [];
-            const decks = loadDecks();
-
-            decks.forEach(deck => {
+            loadDecks().forEach(deck => {
                 (Array.isArray(deck.cards) ? deck.cards : []).forEach((card, index) => {
-                    // Recherche uniquement dans le contenu visible de la carte,
-                    // pas dans les données de révision ou dans le nom du deck.
                     const searchable = normalizeSearch([
                         card.word, card.answer, card.question, card.translation,
                         card.front, card.back, card.meaning, card.expression
                     ].filter(value => typeof value === "string").join(" "));
-
-                    if (searchable.includes(query)) {
-                        matches.push({ deck, card, index });
-                    }
+                    if (searchable.includes(query)) matches.push({ deck, card, index });
                 });
             });
 
-            if (matches.length === 0) {
+            if (!matches.length) {
                 const empty = document.createElement("p");
                 empty.className = "card-search-empty";
                 empty.textContent = "Aucune carte trouvée pour « " + cardSearchInput.value.trim() + " ».";
@@ -1320,8 +1312,22 @@ export function initializeApp() {
 
                 result.append(title, detail);
                 result.addEventListener("click", () => {
-                    localStorage.setItem("manageDeckName", deck.name);
-                    window.location.href = "deck.html";
+                    cardSearchResults.replaceChildren();
+                    cardSearchInput.value = "";
+                    const preview = document.createElement("article");
+                    preview.className = "card-search-preview";
+                    const heading = document.createElement("h3");
+                    heading.textContent = "Carte trouvée";
+                    const word = document.createElement("p");
+                    word.textContent = title.textContent;
+                    word.style.fontWeight = "700";
+                    word.style.fontSize = "1.15em";
+                    const answer = document.createElement("p");
+                    answer.textContent = detail.textContent.replace(" — Deck : " + deck.name, "");
+                    const deckInfo = document.createElement("small");
+                    deckInfo.textContent = "Deck : " + deck.name;
+                    preview.append(heading, word, answer, deckInfo);
+                    cardSearchResults.appendChild(preview);
                 });
                 cardSearchResults.appendChild(result);
             });
