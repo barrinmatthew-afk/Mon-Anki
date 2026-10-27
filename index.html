@@ -292,6 +292,23 @@
            COMPTE
         ========================= */
 
+        /* Le compte et les outils de sauvegarde sont regroupés dans Paramètres. */
+        #account-section, #sync-section { display: none; }
+
+        #settings-link {
+            display: inline-block;
+            margin: 8px 0 22px;
+            padding: 11px 16px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            color: #222;
+            background: #f8fafc;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        #settings-link:hover { background: #eef2f7; }
+
         #account-section {
 
             margin-bottom: 30px;
@@ -556,6 +573,8 @@
 <p class="subtitle">
     Choisis un deck à étudier.
 </p>
+
+<a id="settings-link" href="settings.html">⚙ Paramètres, compte et sauvegardes</a>
 
 
 <!-- =========================
