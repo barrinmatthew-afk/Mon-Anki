@@ -619,51 +619,30 @@ function getDeckColor(deckOrName) {
 function getForecast() {
     const decks = loadDecks();
     const now = Date.now();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const currentHour = new Date(now);
+    currentHour.setMinutes(0, 0, 0);
     const forecast = [];
 
-    // Les 24 créneaux sont toujours les heures fixes de la journée : 00:00 à 23:00.
-    for (let hour = 0; hour < 24; hour++) {
-        const startDate = new Date(today);
-        startDate.setHours(hour, 0, 0, 0);
-        const endDate = new Date(startDate);
-        endDate.setHours(hour + 1, 0, 0, 0);
+    // Prévision glissante sur 24 heures, y compris demain à la même heure.
+    // Chaque carte est placée selon son échéance SRS réelle (nextReview).
+    for (let offset = 0; offset < 24; offset++) {
+        const startDate = new Date(currentHour.getTime() + offset * 60 * 60 * 1000);
+        const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
         const start = startDate.getTime();
         const end = endDate.getTime();
         const deckCounts = [];
-
         decks.forEach(deck => {
             const cards = Array.isArray(deck.cards) ? deck.cards : [];
             const count = cards.filter(card => {
                 const reviewTime = Number(card.nextReview);
-
-                // Une carte déjà due ou nouvelle n'est pas une révision future.
-                // On ne la place donc pas artificiellement dans un créneau horaire.
-                return Number.isFinite(reviewTime) &&
-                    reviewTime > now &&
-                    reviewTime >= start &&
-                    reviewTime < end;
+                return Number.isFinite(reviewTime) && reviewTime > now && reviewTime >= start && reviewTime < end;
             }).length;
-            if (count > 0) {
-                deckCounts.push({
-                    name: deck.name,
-                    count,
-                    color: getDeckColor(deck)
-                });
-            }
+            if (count > 0) deckCounts.push({ name: deck.name, count, color: getDeckColor(deck) });
         });
-
-        forecast.push({
-            start,
-            end,
-            deckCounts,
-            count: deckCounts.reduce((sum, item) => sum + item.count, 0)
-        });
+        forecast.push({ start, end, deckCounts, count: deckCounts.reduce((sum, item) => sum + item.count, 0) });
     }
     return forecast;
 }
-
 
 function displayForecast() {
     const chart = document.getElementById("forecast-chart");
@@ -704,7 +683,13 @@ function displayForecast() {
 
         const hour = document.createElement("div");
         hour.className = "forecast-hour";
-        hour.textContent = date.toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" });
+        const timeLabel = date.toLocaleTimeString("fr-BE", { hour: "2-digit", minute: "2-digit" });
+                const today = new Date();
+                const isToday = date.getDate() === today.getDate() && date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const isTomorrow = date.getDate() === tomorrow.getDate() && date.getMonth() === tomorrow.getMonth() && date.getFullYear() === tomorrow.getFullYear();
+                hour.textContent = isToday ? timeLabel : (isTomorrow ? "Demain " : date.toLocaleDateString("fr-BE", { day: "2-digit", month: "2-digit" }) + " ") + timeLabel;
 
         const detail = item.deckCounts.length
             ? item.deckCounts.map(deck => `${deck.name}: ${deck.count} carte${deck.count > 1 ? "s" : ""}`).join("\\n")
