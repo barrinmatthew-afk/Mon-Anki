@@ -179,6 +179,9 @@
     
         .card-extra-tools { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin-top:16px; }
         .card-extra-tools button { margin:0; }
+        .dictionary-lookup { display:grid; gap:7px; width:min(100%,460px); margin:0 auto 8px; text-align:left; }
+        .dictionary-lookup input,.dictionary-lookup select { width:100%; box-sizing:border-box; padding:10px; border-radius:8px; }
+        .dictionary-lookup label { font-size:.9rem; font-weight:600; }
         #card-difficult-button.is-difficult { background:#fff2e5!important; border-color:#e7a45b!important; color:#8b4513!important; }
         @media(max-width:600px){.card-extra-tools{flex-direction:column}.card-extra-tools button{width:100%}}
     </style>
@@ -355,7 +358,18 @@ body{padding:clamp(14px,3vw,32px)!important;min-height:100vh}
         ></div>
 
         <div id="card-extra-tools" class="card-extra-tools hidden">
-            <button id="card-dictionary-button" type="button">📖 Chercher dans le dictionnaire</button>
+            <div class="dictionary-lookup">
+                <label for="card-dictionary-term">Mot ou expression à rechercher</label>
+                <input id="card-dictionary-term" type="search" placeholder="Choisis ou écris un mot…" autocomplete="off">
+                <label for="card-dictionary-source">Dictionnaire</label>
+                <select id="card-dictionary-source">
+                    <option value="nl-fr">Néerlandais → français (Reverso)</option>
+                    <option value="ja-en">Japonais → anglais (Jisho)</option>
+                    <option value="ja-nl">Japonais → néerlandais</option>
+                    <option value="web">Autre dictionnaire (recherche web)</option>
+                </select>
+                <button id="card-dictionary-button" type="button">📖 Rechercher ce terme</button>
+            </div>
             <button id="card-difficult-button" type="button" aria-pressed="false">⚑ Marquer comme difficile</button>
         </div>
 
