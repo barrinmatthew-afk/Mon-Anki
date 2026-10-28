@@ -4,6 +4,8 @@ const CACHE_NAME = "mon-anki-v26";
 const APP_FILES = [
     "./",
     "./index.html",
+    "./edit-card.html",
+    "./preview.html",
     "./settings.html",
     "./deck.html",
     "./import.html",
