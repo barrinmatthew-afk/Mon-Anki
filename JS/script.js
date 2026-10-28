@@ -1547,3 +1547,9 @@ export function initializeApp() {
 // que l'utilisateur naviguait. Les actions explicites (création,
 // suppression, importation et bouton de synchronisation) rafraîchissent
 // l'interface au moment voulu.
+
+// Rafraîchir l’accueil après une fusion cloud terminée.
+window.addEventListener("cloudDecksSynced", () => {
+    displayDecks();
+    displayForecast();
+});
