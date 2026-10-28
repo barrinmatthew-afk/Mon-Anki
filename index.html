@@ -104,26 +104,17 @@
             background: #eef2f7;
         }
 
-        #app-sidebar #create-deck-section {
-            margin-top: 0;
-            padding: 16px;
+        #create-deck-section {
+            margin-top: 28px;
+            padding: 22px;
+            background: var(--ui-panel, #fff);
+            border: 1px solid var(--ui-line, #e3e8f1);
+            border-radius: 16px;
+            box-shadow: var(--ui-shadow, 0 8px 24px rgba(25,42,75,.055));
         }
-
-        #app-sidebar #create-deck-section h2 {
-            margin-top: 0;
-            font-size: 20px;
-        }
-
-        #app-sidebar #new-deck-name {
-            box-sizing: border-box;
-            width: 100%;
-            max-width: 100%;
-        }
-
-        #app-sidebar #create-deck {
-            width: 100%;
-            margin: 10px 0 0;
-        }
+        #create-deck-section h2 { margin-top: 0; }
+        #new-deck-name { box-sizing: border-box; width: 100%; max-width: 100%; }
+        #create-deck { margin: 10px 0 0; }
 
         .app-topbar h1 {
             margin-top: 0;
@@ -1014,7 +1005,7 @@
 
 
 <div class="app-topbar">
-    <button id="sidebar-open" class="sidebar-open" type="button" aria-label="Ouvrir le menu" aria-controls="app-sidebar" aria-expanded="false">☰</button>
+    
     <div>
         <h1>Mon Anki</h1>
         <p class="subtitle">Decks, révisions dues et temps d’étude.</p>
@@ -1023,7 +1014,7 @@
 
 <nav id="internal-tabs" class="internal-tabs" aria-label="Onglets Mon Anki">
     <button type="button" class="internal-tab active" data-internal-tab="home">Accueil</button>
-    <button id="card-search-tab" class="internal-tab" type="button" aria-controls="card-search-panel" aria-expanded="false">Recherche</button><a class="internal-tab settings-tab-link" href="settings.html">Paramètres</a><div id="card-internal-tabs"></div>
+    <button id="card-search-tab" class="internal-tab" type="button" aria-controls="card-search-panel" aria-expanded="false">Recherche</button><a class="internal-tab settings-tab-link" href="study-time.html">Historique</a><a class="internal-tab settings-tab-link" href="settings.html">Paramètres</a><div id="card-internal-tabs"></div>
 </nav>
 <section id="internal-card-editor" hidden aria-label="Modifier une carte"></section>
 
@@ -1033,31 +1024,7 @@
     <div class="dashboard-metric"><div class="dashboard-metric-label">Cartes enregistrées</div><div class="dashboard-metric-value" id="dashboard-card-count">—</div><div class="dashboard-metric-note" id="dashboard-deck-count">— decks</div></div>
 </section>
 
-<div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
-<aside id="app-sidebar" class="app-sidebar" aria-label="Menu principal" aria-hidden="true">
-    <div class="sidebar-heading">
-        <h2>Menu</h2>
-        <button id="sidebar-close" type="button" aria-label="Fermer le menu">✕</button>
-    </div>
 
-    <nav class="sidebar-nav">
-        <a href="study-time.html">⏱ Temps d’étude et historique</a>
-        <a href="settings.html">⚙ Paramètres, compte et sauvegardes</a>
-        <a href="import.html">📥 Importer du vocabulaire</a>
-    </nav>
-
-    <section id="create-deck-section">
-        <h2>Créer un deck</h2>
-        <input
-            type="text"
-            id="new-deck-name"
-            placeholder="Nom du deck (ex. Néerlandais::Verbes)"
-            aria-label="Nom du nouveau deck"
-        >
-        <button id="create-deck" type="button">Créer le deck</button>
-        <p class="forecast-subtitle">Utilise « :: » pour créer un sous-deck, par exemple « Néerlandais::Verbes ».</p>
-    </section>
-</aside>
 
 
 <!-- =========================
@@ -1126,6 +1093,18 @@
 
 
 
+<section id="create-deck-section">
+    <h2>Créer un deck</h2>
+    <input
+        type="text"
+        id="new-deck-name"
+        placeholder="Nom du deck (ex. Néerlandais::Verbes)"
+        aria-label="Nom du nouveau deck"
+    >
+    <button id="create-deck" type="button">Créer le deck</button>
+    <p class="forecast-subtitle">Utilise « :: » pour créer un sous-deck, par exemple « Néerlandais::Verbes ».</p>
+</section>
+
 <div id="sync-section">
 
     <h2>
@@ -1184,30 +1163,8 @@
 
 
 <script type="module">
-    // ==============================
-    // VOLET LATERAL
-    // ==============================
-    const sidebar = document.getElementById("app-sidebar");
-    const sidebarOpen = document.getElementById("sidebar-open");
-    const sidebarClose = document.getElementById("sidebar-close");
-    const sidebarBackdrop = document.getElementById("sidebar-backdrop");
-
-    function setSidebarOpen(open) {
-        sidebar?.classList.toggle("open", open);
-        document.body.classList.toggle("sidebar-open", open);
-        if (sidebar) sidebar.setAttribute("aria-hidden", String(!open));
-        if (sidebarOpen) sidebarOpen.setAttribute("aria-expanded", String(open));
-        if (sidebarBackdrop) sidebarBackdrop.hidden = !open;
-    }
-
-    sidebarOpen?.addEventListener("click", () => setSidebarOpen(true));
-    sidebarClose?.addEventListener("click", () => setSidebarOpen(false));
-    sidebarBackdrop?.addEventListener("click", () => setSidebarOpen(false));
     document.addEventListener("keydown", event => {
-        if (event.key === "Escape") { setSidebarOpen(false); if (document.body.classList.contains("card-search-page-active")) setSearchOpen(false); }
-    });
-    sidebar?.querySelectorAll("a").forEach(link => {
-        link.addEventListener("click", () => setSidebarOpen(false));
+        if (event.key === "Escape" && document.body.classList.contains("card-search-page-active")) setSearchOpen(false);
     });
 
     // Recherche accessible depuis un onglet fixe à droite.
