@@ -1,16 +1,20 @@
 
-const CACHE_NAME = "mon-anki-v22";
+const CACHE_NAME = "mon-anki-v23";
 
 const APP_FILES = [
     "./",
     "./index.html",
     "./settings.html",
+    "./deck.html",
+    "./import.html",
     "./study-time.html",
     "./JS/study-time.js",
     "./flashcards.html",
     "./study.html",
     "./JS/flashcards.js",
     "./JS/study.js",
+    "./JS/deck.js",
+    "./JS/firebase.js",
     "./JS/script.js"
 ];
 
