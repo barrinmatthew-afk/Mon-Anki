@@ -485,7 +485,11 @@ export async function syncLocalDecksWithCloud(options = {}) {
     }
 
     if (syncPromise) {
-        return syncPromise;
+        const existingResult = await syncPromise;
+        if (options.waitForCompletion === true && existingResult === false) {
+            throw new Error("La synchronisation cloud a échoué. Les données locales sont conservées.");
+        }
+        return existingResult;
     }
 
     const task = (async () => {
