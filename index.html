@@ -170,6 +170,9 @@
         #card-search-close { margin:0; padding:8px 11px; font-size:18px; }
         #card-search-input { box-sizing:border-box; width:100%; padding:14px 15px; border:1px solid #cbd5e1; border-radius:10px; font:inherit; font-size:17px; }
         #card-search-results { margin-top:16px; display:grid; gap:8px; }
+        .search-utility-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+        .search-utility-actions button { margin:0; }
+        @media(max-width:640px){.search-utility-actions{flex-direction:column}.search-utility-actions button{width:100%}}
         .card-search-result { display:block; width:100%; margin:0; padding:14px 15px; text-align:left; border:1px solid #e5e7eb; border-radius:11px; background:#f8fafc; color:inherit; }
         .card-search-result:hover { border-color:#9bb8ff; background:#f1f6ff; }
         .card-search-result strong { display:block; }
@@ -1069,6 +1072,10 @@
     </div>
     <p class="card-search-description">Retrouve un deck, une carte, un mot ou une traduction.</p>
     <input id="card-search-input" type="search" placeholder="Nom du deck, mot, traduction…" autocomplete="off">
+    <div class="search-utility-actions">
+        <button id="dictionary-search-button" type="button">📖 Chercher le mot dans le dictionnaire</button>
+        <button id="difficult-cards-button" type="button" aria-pressed="false">⚑ Afficher les cartes difficiles</button>
+    </div>
     <div id="card-search-results" aria-live="polite"></div>
 </section>
 
