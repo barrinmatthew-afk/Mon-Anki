@@ -538,6 +538,7 @@ function writeLocalDecks(decks) {
 // ==============================
 
 let syncPromise = null;
+let lastSyncError = null;
 
 export async function syncLocalDecksWithCloud(options = {}) {
     const user = await waitForAuth();
@@ -551,10 +552,12 @@ export async function syncLocalDecksWithCloud(options = {}) {
     if (syncPromise) {
         const existingResult = await syncPromise;
         if (options.waitForCompletion === true && existingResult === false) {
-            throw new Error("La synchronisation cloud a échoué. Les données locales sont conservées.");
+            throw lastSyncError || new Error("La synchronisation cloud a échoué. Les données locales sont conservées.");
         }
         return existingResult;
     }
+
+    lastSyncError = null;
 
     const task = (async () => {
         try {
@@ -609,6 +612,7 @@ export async function syncLocalDecksWithCloud(options = {}) {
             );
             return true;
         } catch (error) {
+            lastSyncError = error;
             console.warn(
                 "Synchronisation indisponible. Les decks locaux restent utilisables :",
                 error
@@ -622,7 +626,7 @@ export async function syncLocalDecksWithCloud(options = {}) {
     if (options.waitForCompletion === true) {
         const success = await task;
         if (success === false) {
-            throw new Error("La synchronisation cloud a échoué. Les données locales sont conservées.");
+            throw lastSyncError || new Error("La synchronisation cloud a échoué. Les données locales sont conservées.");
         }
     } else {
         // Ne pas bloquer indéfinimeant l'ouverture sur un réseau lent.
