@@ -150,6 +150,9 @@ function userDocument() {
 // CHARGER LES DECKS DU CLOUD
 // ==============================
 
+let cloudDeletedDeckNames = [];
+let cloudDeletedCardKeys = [];
+
 export async function loadCloudDecks() {
     const userRef = userDocument();
 
@@ -164,6 +167,8 @@ export async function loadCloudDecks() {
     }
 
     const data = snapshot.data();
+    cloudDeletedDeckNames = Array.isArray(data.deletedDeckNames) ? data.deletedDeckNames : [];
+    cloudDeletedCardKeys = Array.isArray(data.deletedCardKeys) ? data.deletedCardKeys : [];
 
     return Array.isArray(data.decks)
         ? data.decks
@@ -206,7 +211,14 @@ async function flushCloudSave() {
     try {
         const userRef = userDocument();
         if (!userRef) throw new Error('Aucun compte Google connecté.');
-        await setDoc(userRef, { decks: decksSnapshot, updatedAt: serverTimestamp() }, { merge: true });
+        const deletedDeckNames = JSON.parse(localStorage.getItem("monanki_deleted_deck_names") || "[]");
+        const deletedCardKeys = JSON.parse(localStorage.getItem("monanki_deleted_card_keys") || "[]");
+        await setDoc(userRef, {
+            decks: decksSnapshot,
+            deletedDeckNames: [...new Set([...cloudDeletedDeckNames, ...deletedDeckNames])],
+            deletedCardKeys: [...new Set([...cloudDeletedCardKeys, ...deletedCardKeys])],
+            updatedAt: serverTimestamp()
+        }, { merge: true });
         lastSaveError = null;
         resolversForSnapshot.forEach(({ resolve }) => resolve(true));
         console.info('Progression synchronisée avec Firestore.');
@@ -402,7 +414,33 @@ function mergeDeckLists(localDecks, cloudDecks) {
         );
     }
 
+    const deletedDeckNames = new Set([
+        ...cloudDeletedDeckNames,
+        ...JSON.parse(localStorage.getItem("monanki_deleted_deck_names") || "[]")
+    ]);
+    const deletedCardKeys = new Set([
+        ...cloudDeletedCardKeys,
+        ...JSON.parse(localStorage.getItem("monanki_deleted_card_keys") || "[]")
+    ]);
+
+    // Les suppressions explicites priment sur les copies présentes sur l'autre appareil.
+    for (const deletedName of deletedDeckNames) byName.delete(deletedName);
+
+    for (const [name, deck] of byName.entries()) {
+        deck.cards = (Array.isArray(deck.cards) ? deck.cards : []).filter(card => {
+            const key = makeDeletedCardKey(name, card);
+            return !deletedCardKeys.has(key);
+        });
+    }
+
     return [...byName.values()];
+}
+
+function makeDeletedCardKey(deckName, card) {
+    const word = String(card?.word ?? "").trim().toLocaleLowerCase();
+    const answer = String(card?.answer ?? "").trim().toLocaleLowerCase();
+    const mode = String(card?.mode ?? "").trim().toLocaleLowerCase();
+    return JSON.stringify([deckName, word, answer, mode]);
 }
 
 
