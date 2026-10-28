@@ -597,11 +597,21 @@ window.saveDecksToCloud = saveDecksToCloud;
 
 
 // Statistiques de temps d'étude, séparées par jour et appareil.
-export async function saveStudyTime(date, deviceId, seconds) {
+export async function saveStudyTime(date, deviceId, seconds, subjectSeconds = {}) {
     const user = auth.currentUser;
     if (!user || !date || !deviceId || !Number.isFinite(seconds)) return false;
     const statsRef = doc(db, "users", user.uid, "studyStats", date + "_" + deviceId);
-    await setDoc(statsRef, { date, deviceId, seconds: Math.max(0, Math.floor(seconds)), updatedAt: serverTimestamp() }, { merge: true });
+    const cleanSubjects = {};
+    Object.entries(subjectSeconds || {}).forEach(([name, value]) => {
+        if (name && Number.isFinite(Number(value))) cleanSubjects[name] = Math.max(0, Math.floor(Number(value)));
+    });
+    await setDoc(statsRef, {
+        date,
+        deviceId,
+        seconds: Math.max(0, Math.floor(seconds)),
+        subjectSeconds: cleanSubjects,
+        updatedAt: serverTimestamp()
+    }, { merge: true });
     return true;
 }
 
