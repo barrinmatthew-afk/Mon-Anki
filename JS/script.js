@@ -1275,6 +1275,193 @@ export function initializeApp() {
 
 
     /* =========================
+       ONGLETS INTERNES + EDITEUR DE CARTE
+    ========================= */
+    const homeInternalTab = document.querySelector('[data-internal-tab="home"]');
+    const cardInternalTabs = document.getElementById("card-internal-tabs");
+    const internalEditor = document.getElementById("internal-card-editor");
+    const openCardTabs = [];
+    let activeInternalTabId = "home";
+    let nextInternalTabId = 1;
+
+    function getCardTabLabel(card, index) {
+        const label = [card.word, card.question, card.front, card.expression]
+            .find(value => typeof value === "string" && value.trim());
+        return String(label || "Carte " + (index + 1)).slice(0, 22);
+    }
+
+    function setActiveInternalTab(tabId) {
+        activeInternalTabId = tabId;
+        const isHome = tabId === "home";
+        document.body.classList.toggle("card-editor-active", !isHome);
+        homeInternalTab?.classList.toggle("active", isHome);
+        cardInternalTabs?.querySelectorAll("[data-card-tab-id]").forEach(button => {
+            button.classList.toggle("active", button.dataset.cardTabId === tabId);
+        });
+        internalEditor.hidden = isHome;
+        if (isHome) {
+            internalEditor.replaceChildren();
+        } else {
+            renderInternalCardEditor();
+        }
+    }
+
+    function renderInternalTabs() {
+        if (!cardInternalTabs) return;
+        cardInternalTabs.replaceChildren();
+        openCardTabs.forEach(tab => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "internal-tab" + (tab.id === activeInternalTabId ? " active" : "");
+            button.dataset.cardTabId = tab.id;
+            const title = document.createElement("span");
+            const found = loadDecks().find(deck => deck.name === tab.deckName);
+            const card = found?.cards?.[tab.index];
+            title.textContent = card ? getCardTabLabel(card, tab.index) : "Carte introuvable";
+            button.appendChild(title);
+            const close = document.createElement("span");
+            close.className = "internal-tab-close";
+            close.textContent = "×";
+            close.setAttribute("aria-label", "Fermer cet onglet");
+            close.addEventListener("click", event => {
+                event.stopPropagation();
+                const wasActive = activeInternalTabId === tab.id;
+                const position = openCardTabs.findIndex(item => item.id === tab.id);
+                openCardTabs.splice(position, 1);
+                if (wasActive) setActiveInternalTab(openCardTabs[position - 1]?.id || openCardTabs[0]?.id || "home");
+                renderInternalTabs();
+            });
+            button.appendChild(close);
+            button.addEventListener("click", () => setActiveInternalTab(tab.id));
+            cardInternalTabs.appendChild(button);
+        });
+        homeInternalTab?.classList.toggle("active", activeInternalTabId === "home");
+    }
+
+    function openInternalCardTab(deckName, index) {
+        const existing = openCardTabs.find(tab => tab.deckName === deckName && tab.index === index);
+        if (existing) {
+            setActiveInternalTab(existing.id);
+            renderInternalTabs();
+            return;
+        }
+        const tab = { id: "card-" + nextInternalTabId++, deckName, index };
+        openCardTabs.push(tab);
+        setActiveInternalTab(tab.id);
+        renderInternalTabs();
+    }
+
+    function renderInternalCardEditor() {
+        if (!internalEditor || activeInternalTabId === "home") return;
+        const tab = openCardTabs.find(item => item.id === activeInternalTabId);
+        if (!tab) return;
+        const decks = loadDecks();
+        const sourceDeck = decks.find(deck => deck.name === tab.deckName);
+        const card = sourceDeck?.cards?.[tab.index];
+        internalEditor.replaceChildren();
+
+        const heading = document.createElement("h2");
+        heading.textContent = "Modifier une carte";
+        internalEditor.appendChild(heading);
+        if (!sourceDeck || !card) {
+            const missing = document.createElement("p");
+            missing.textContent = "Cette carte est introuvable. Ferme cet onglet et relance la recherche.";
+            internalEditor.appendChild(missing);
+            return;
+        }
+
+        const info = document.createElement("p");
+        info.className = "card-search-editor-deck";
+        info.textContent = "Deck actuel : " + sourceDeck.name + " · La progression de révision sera conservée.";
+        internalEditor.appendChild(info);
+
+        const labels = {
+            word: "Mot / recto", answer: "Réponse / verso", question: "Question",
+            translation: "Traduction", front: "Recto", back: "Verso",
+            meaning: "Sens", expression: "Expression", example: "Exemple",
+            notes: "Notes", hint: "Indice"
+        };
+        const editableFields = Object.keys(card).filter(key => typeof card[key] === "string");
+        editableFields.forEach(key => {
+            const label = document.createElement("label");
+            label.className = "internal-editor-field";
+            const caption = document.createElement("span");
+            caption.textContent = labels[key] || key;
+            const input = document.createElement("textarea");
+            input.value = card[key];
+            input.dataset.cardField = key;
+            input.rows = input.value.length > 100 ? 4 : 2;
+            label.append(caption, input);
+            internalEditor.appendChild(label);
+        });
+
+        const moveLabel = document.createElement("label");
+        moveLabel.className = "internal-editor-field";
+        const moveCaption = document.createElement("span");
+        moveCaption.textContent = "Déplacer vers un autre deck";
+        const select = document.createElement("select");
+        select.id = "internal-card-target-deck";
+        decks.forEach(deck => {
+            const option = document.createElement("option");
+            option.value = deck.name;
+            option.textContent = deck.name;
+            option.selected = deck.name === sourceDeck.name;
+            select.appendChild(option);
+        });
+        moveLabel.append(moveCaption, select);
+        internalEditor.appendChild(moveLabel);
+
+        const actions = document.createElement("div");
+        actions.className = "internal-editor-actions";
+        const save = document.createElement("button");
+        save.type = "button";
+        save.textContent = "Enregistrer";
+        save.addEventListener("click", () => {
+            const latestDecks = loadDecks();
+            const latestSource = latestDecks.find(deck => deck.name === tab.deckName);
+            const latestCard = latestSource?.cards?.[tab.index];
+            if (!latestSource || !latestCard) {
+                status.textContent = "Carte introuvable : aucune modification enregistrée.";
+                return;
+            }
+            internalEditor.querySelectorAll("[data-card-field]").forEach(input => {
+                latestCard[input.dataset.cardField] = input.value;
+            });
+            const targetName = select.value;
+            if (targetName !== latestSource.name) {
+                const targetDeck = latestDecks.find(deck => deck.name === targetName);
+                if (!targetDeck) {
+                    status.textContent = "Le deck de destination n'existe plus.";
+                    return;
+                }
+                latestSource.cards.splice(tab.index, 1);
+                targetDeck.cards.push(latestCard);
+                tab.deckName = targetDeck.name;
+                tab.index = targetDeck.cards.length - 1;
+            }
+            saveDecks(latestDecks);
+            displayDecks();
+            displayForecast();
+            renderInternalTabs();
+            renderInternalCardEditor();
+            const savedStatus = document.createElement("p");
+            savedStatus.className = "internal-editor-status";
+            savedStatus.textContent = targetName !== latestSource.name
+                ? "✓ Carte modifiée et déplacée vers « " + targetName + " »."
+                : "✓ Modifications enregistrées.";
+            internalEditor.appendChild(savedStatus);
+        });
+        const cancel = document.createElement("button");
+        cancel.type = "button";
+        cancel.textContent = "Annuler les modifications";
+        cancel.addEventListener("click", () => renderInternalCardEditor());
+        actions.append(save, cancel);
+        internalEditor.appendChild(actions);
+    }
+
+    homeInternalTab?.addEventListener("click", () => setActiveInternalTab("home"));
+
+    /* =========================
        RECHERCHE DE CARTES
     ========================= */
     const cardSearchInput = document.getElementById("card-search-input");
@@ -1325,10 +1512,8 @@ export function initializeApp() {
 
                 result.append(title, detail);
                 result.addEventListener("click", () => {
-                    const editUrl = new URL("edit-card.html", window.location.href);
-                    editUrl.searchParams.set("deck", deck.name);
-                    editUrl.searchParams.set("index", String(index));
-                    window.open(editUrl.href, "_blank", "noopener");
+                    openInternalCardTab(deck.name, index);
+                    document.getElementById("card-search-close")?.click();
                 });
                 cardSearchResults.appendChild(result);
             });
