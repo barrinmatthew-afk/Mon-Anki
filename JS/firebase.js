@@ -558,6 +558,7 @@ export async function syncLocalDecksWithCloud(options = {}) {
     }
 
     lastSyncError = null;
+    window.cloudSyncLastError = null;
 
     const task = (async () => {
         try {
@@ -613,6 +614,13 @@ export async function syncLocalDecksWithCloud(options = {}) {
             return true;
         } catch (error) {
             lastSyncError = error;
+            // Exposer temporairement le détail pour que l'interface puisse l'afficher.
+            window.cloudSyncLastError = {
+                code: error?.code || "",
+                name: error?.name || "Error",
+                message: error?.message || String(error),
+                stack: error?.stack || ""
+            };
             console.warn(
                 "Synchronisation indisponible. Les decks locaux restent utilisables :",
                 error
