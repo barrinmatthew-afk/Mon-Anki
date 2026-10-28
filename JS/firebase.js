@@ -22,6 +22,8 @@ import {
     getDoc,
     getDocFromServer,
     setDoc,
+    deleteDoc,
+    deleteField,
     serverTimestamp,
     onSnapshot,
     collection,
@@ -155,27 +157,43 @@ let cloudDeletedDeckNames = [];
 let cloudDeletedCardKeys = [];
 
 export async function loadCloudDecks() {
+    const user = auth.currentUser;
     const userRef = userDocument();
 
-    if (!userRef) {
+    if (!user || !userRef) {
         return null;
     }
 
-    // Pour la synchronisation multi-appareils, ne jamais fusionner une copie cachee potentiellement ancienne.
-    // Exiger une lecture du serveur avant de re-enregistrer la liste complete des decks.
+    // Lire les métadonnées du serveur, sans dépendre d'une copie cache potentiellement ancienne.
     const snapshot = await getDocFromServer(userRef);
+    const data = snapshot.exists() ? snapshot.data() : {};
 
-    if (!snapshot.exists()) {
-        return null;
-    }
-
-    const data = snapshot.data();
     cloudDeletedDeckNames = Array.isArray(data.deletedDeckNames) ? data.deletedDeckNames : [];
     cloudDeletedCardKeys = Array.isArray(data.deletedCardKeys) ? data.deletedCardKeys : [];
 
-    return Array.isArray(data.decks)
-        ? data.decks
-        : [];
+    // Compatibilité/migration : récupérer aussi les anciens decks stockés dans le document utilisateur.
+    const byName = new Map();
+    const legacyDecks = Array.isArray(data.decks) ? data.decks : [];
+    legacyDecks.forEach(deck => {
+        if (deck && typeof deck.name === "string") byName.set(deck.name, deck);
+    });
+
+    // Nouveau format : un document par deck et des morceaux de cartes séparés pour éviter la limite de 1 Mio.
+    const deckSnapshots = await getDocs(collection(db, "users", user.uid, "decks"));
+    for (const deckSnapshot of deckSnapshots.docs) {
+        const stored = deckSnapshot.data();
+        if (!stored || typeof stored.name !== "string" || !stored.deck) continue;
+
+        const partsSnapshot = await getDocs(collection(db, "users", user.uid, "decks", deckSnapshot.id, "parts"));
+        const parts = partsSnapshot.docs
+            .map(part => ({ id: part.id, data: part.data() }))
+            .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+
+        const cards = parts.flatMap(part => Array.isArray(part.data.cards) ? part.data.cards : []);
+        byName.set(stored.name, { ...stored.deck, name: stored.name, cards });
+    }
+
+    return [...byName.values()];
 }
 
 
@@ -212,12 +230,55 @@ async function flushCloudSave() {
     const resolversForSnapshot = pendingSaveResolvers.splice(0);
     pendingDecks = null;
     try {
+        const user = auth.currentUser;
         const userRef = userDocument();
-        if (!userRef) throw new Error('Aucun compte Google connecté.');
+        if (!user || !userRef) throw new Error('Aucun compte Google connecté.');
+
+        // Stocker les decks séparément et découper les cartes en groupes de 50.
+        // Ainsi, aucun document n'approche la limite Firestore de 1 Mio.
+        for (const deck of decksSnapshot) {
+            if (!deck || typeof deck.name !== "string") continue;
+
+            const deckId = encodeURIComponent(deck.name);
+            const deckRef = doc(db, "users", user.uid, "decks", deckId);
+            const allCards = Array.isArray(deck.cards) ? deck.cards : [];
+            const { cards: ignoredCards, ...deckMetadata } = deck;
+            const chunks = [];
+            for (let i = 0; i < allCards.length; i += 50) {
+                chunks.push(allCards.slice(i, i + 50));
+            }
+
+            await setDoc(deckRef, {
+                name: deck.name,
+                deck: deckMetadata,
+                cardCount: allCards.length,
+                updatedAt: serverTimestamp()
+            });
+
+            const oldParts = await getDocs(collection(db, "users", user.uid, "decks", deckId, "parts"));
+            for (const part of oldParts.docs) {
+                const partNumber = Number(part.id.replace("part_", ""));
+                if (!Number.isInteger(partNumber) || partNumber >= chunks.length) {
+                    await deleteDoc(part.ref);
+                }
+            }
+
+            for (let i = 0; i < chunks.length; i++) {
+                const partId = "part_" + String(i).padStart(5, "0");
+                await setDoc(doc(db, "users", user.uid, "decks", deckId, "parts", partId), {
+                    cards: chunks[i],
+                    updatedAt: serverTimestamp()
+                });
+            }
+        }
+
         const deletedDeckNames = JSON.parse(localStorage.getItem("monanki_deleted_deck_names") || "[]");
         const deletedCardKeys = JSON.parse(localStorage.getItem("monanki_deleted_card_keys") || "[]");
+
+        // Supprimer l'ancien tableau géant du document utilisateur après migration.
+        // Le document racine ne contient désormais que les métadonnées de synchronisation.
         await setDoc(userRef, {
-            decks: decksSnapshot,
+            decks: deleteField(),
             deletedDeckNames: [...new Set([...cloudDeletedDeckNames, ...deletedDeckNames])],
             deletedCardKeys: [...new Set([...cloudDeletedCardKeys, ...deletedCardKeys])],
             updatedAt: serverTimestamp()
