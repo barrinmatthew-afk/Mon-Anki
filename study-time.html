@@ -1,6 +1,39 @@
-<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Temps d’étude — Mon Anki</title>
-<style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;max-width:760px;margin:32px auto;padding:0 18px;color:#222}a,button{font:inherit}a{color:#333}.summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:22px 0}.metric,section{border:1px solid #ddd;border-radius:12px;padding:18px;background:#fff}.metric span{display:block;color:#666;font-size:14px}.metric strong{display:block;font-size:25px;margin-top:8px}button{padding:10px 14px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer}.history-row{display:flex;justify-content:space-between;gap:15px;padding:12px 2px;border-bottom:1px solid #eee}.note{font-size:14px;color:#666;line-height:1.5}h1{margin-bottom:6px}section{margin-top:18px}@media(max-width:500px){body{margin:16px auto}.summary{grid-template-columns:1fr}.metric strong{font-size:22px}}</style></head><body>
-<p><a href="index.html">← Retour aux decks</a></p><h1>⏱ Temps d’étude</h1><p class="note">Le temps est compté pendant une session de révision active. Le minuteur s’arrête lorsque l’onglet est masqué. Les sessions sur téléphone et PC peuvent être additionnées avec le même compte Google.</p>
-<div class="summary"><div class="metric"><span>Aujourd’hui</span><strong id="study-today">Calcul…</strong></div><div class="metric"><span>Moyenne par jour (jours étudiés, 30 derniers jours)</span><strong id="study-average">Calcul…</strong></div></div>
-<section><h2>Historique des 30 derniers jours</h2><button id="refresh-study-stats">↻ Actualiser l’historique</button><div id="study-history" style="margin-top:12px"></div><p id="study-sync-note" class="note">Chargement des statistiques…</p></section>
-<script type="module">if("serviceWorker" in navigator) navigator.serviceWorker.register("./service-worker.js").catch(()=>{}); import("./JS/study-time.js").catch(error=>console.error(error));</script></body></html>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Temps d’étude — Mon Anki</title>
+<style>
+*{box-sizing:border-box}body{font-family:Arial,sans-serif;max-width:900px;margin:32px auto;padding:0 18px;color:#222}
+a,button{font:inherit}a{color:#333}.summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:22px 0}
+.metric,section{border:1px solid #ddd;border-radius:12px;padding:18px;background:#fff}.metric span{display:block;color:#666;font-size:14px}.metric strong{display:block;font-size:25px;margin-top:8px}
+button{padding:10px 14px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer}.history-row{display:grid;grid-template-columns:100px 90px minmax(70px,1fr);align-items:center;gap:12px;padding:12px 2px;border-bottom:1px solid #eee}
+.history-stacked{display:flex;height:10px;overflow:hidden;border-radius:10px;background:#eee}.history-stacked span{height:100%}.note{font-size:14px;color:#666;line-height:1.5}
+h1{margin-bottom:6px}section{margin-top:18px}.subject-row{display:grid;grid-template-columns:minmax(90px,160px) minmax(60px,1fr) 90px;gap:12px;align-items:center;margin:14px 0}
+.subject-label{overflow-wrap:anywhere}.subject-track{height:18px;background:#f1f5f9;border-radius:5px;overflow:hidden}.subject-bar{height:100%;border-radius:5px}
+#subject-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:18px}.subject-key{display:inline-flex;align-items:center;gap:6px;font-size:14px}.subject-key i{width:11px;height:11px;border-radius:3px;display:inline-block}
+@media(max-width:560px){body{margin:16px auto}.summary{grid-template-columns:1fr}.metric strong{font-size:22px}.history-row{grid-template-columns:78px 70px minmax(50px,1fr);gap:7px;font-size:13px}.subject-row{grid-template-columns:90px minmax(45px,1fr) 76px;gap:7px;font-size:13px}}
+</style>
+</head>
+<body>
+<p><a href="index.html">← Retour aux decks</a></p>
+<h1>⏱ Temps d’étude</h1>
+<p class="note">Le temps est compté pendant une session de révision active. Le minuteur s’arrête lorsque l’onglet est masqué. La matière est déterminée par le deck ouvert (ex. « Néerlandais::Verbes » est classé dans « Néerlandais »).</p>
+<div class="summary">
+<div class="metric"><span>Aujourd’hui</span><strong id="study-today">Calcul…</strong></div>
+<div class="metric"><span>Moyenne par jour (jours étudiés, 30 derniers jours)</span><strong id="study-average">Calcul…</strong></div>
+</div>
+<section>
+<h2>Répartition par matière — 30 derniers jours</h2>
+<p class="note">Les barres sont classées de la matière la plus étudiée à la moins étudiée.</p>
+<div id="subject-chart">Chargement…</div><div id="subject-legend"></div>
+</section>
+<section>
+<h2>Historique des 30 derniers jours</h2>
+<button id="refresh-study-stats">↻ Actualiser l’historique</button>
+<div id="study-history" style="margin-top:12px"></div>
+<p id="study-sync-note" class="note">Chargement des statistiques…</p>
+</section>
+<script type="module">if("serviceWorker" in navigator) navigator.serviceWorker.register("./service-worker.js").catch(()=>{}); import("./JS/study-time.js").catch(error=>console.error(error));</script>
+</body></html>
