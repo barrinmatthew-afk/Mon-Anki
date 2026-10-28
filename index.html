@@ -172,6 +172,10 @@
         #card-search-results { margin-top:16px; display:grid; gap:8px; }
         .search-utility-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
         .search-utility-actions button { margin:0; }
+        .search-utility-actions input,.search-utility-actions select { min-width:0; padding:10px; border-radius:8px; }
+        .search-utility-actions input { flex:1 1 190px; }
+        .search-utility-actions select { flex:1 1 250px; }
+        .search-utility-actions button { flex:0 0 auto; }
         @media(max-width:640px){.search-utility-actions{flex-direction:column}.search-utility-actions button{width:100%}}
         .card-search-result { display:block; width:100%; margin:0; padding:14px 15px; text-align:left; border:1px solid #e5e7eb; border-radius:11px; background:#f8fafc; color:inherit; }
         .card-search-result:hover { border-color:#9bb8ff; background:#f1f6ff; }
@@ -1073,7 +1077,14 @@
     <p class="card-search-description">Retrouve un deck, une carte, un mot ou une traduction.</p>
     <input id="card-search-input" type="search" placeholder="Nom du deck, mot, traduction…" autocomplete="off">
     <div class="search-utility-actions">
-        <button id="dictionary-search-button" type="button">📖 Chercher le mot dans le dictionnaire</button>
+        <input id="homepage-dictionary-term" type="search" placeholder="Mot à chercher dans le dictionnaire…" autocomplete="off" aria-label="Mot à chercher dans le dictionnaire">
+        <select id="homepage-dictionary-source" aria-label="Choisir le dictionnaire">
+            <option value="nl-nl">Néerlandais → néerlandais (Woorden.org)</option>
+            <option value="ja-en">Japonais → anglais (Jisho)</option>
+            <option value="ja-nl">Japonais → néerlandais</option>
+            <option value="web">Autre dictionnaire (recherche web)</option>
+        </select>
+        <button id="dictionary-search-button" type="button">📖 Rechercher</button>
         <button id="difficult-cards-button" type="button" aria-pressed="false">⚑ Afficher les cartes difficiles</button>
     </div>
     <div id="card-search-results" aria-live="polite"></div>
