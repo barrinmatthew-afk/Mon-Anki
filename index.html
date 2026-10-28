@@ -166,33 +166,31 @@
 
 
 
-        #card-search-tab {
-            position: fixed; z-index: 990; right: 0; top: 42%;
-            writing-mode: vertical-rl; transform: rotate(180deg);
-            border: 1px solid #cbd5e1; border-right: 0; border-radius: 9px 0 0 9px;
-            padding: 14px 10px; margin: 0; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.12);
-            font-weight: 700;
-        }
+        #card-search-tab { margin:0; }
         #card-search-panel {
-            position: fixed; z-index: 1200; inset: 0 0 0 auto; width: min(390px, 92vw);
-            box-sizing: border-box; padding: 20px; overflow-y: auto; background: #fff;
-            box-shadow: -8px 0 28px rgba(0,0,0,.18); transform: translateX(105%);
-            transition: transform .22s ease;
+            width:100%; box-sizing:border-box; padding:24px; margin:0 0 24px;
+            background:#fff; border:1px solid var(--ui-line,#e3e8f1); border-radius:16px;
+            box-shadow:var(--ui-shadow,0 8px 24px rgba(25,42,75,.055));
         }
-        #card-search-panel.open { transform: translateX(0); }
-        .card-search-panel-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; }
-        .card-search-panel-heading strong { font-size:20px; }
+        #card-search-panel[hidden] { display:none !important; }
+        .card-search-panel-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; }
+        .card-search-panel-heading strong { font-size:24px; }
+        .card-search-description { margin:0 0 18px; color:var(--ui-muted,#64748b); }
         #card-search-close { margin:0; padding:8px 11px; font-size:18px; }
-        #card-search-input { box-sizing:border-box; width:100%; padding:11px 12px; border:1px solid #cbd5e1; border-radius:8px; font:inherit; }
-        #card-search-results { margin-top:10px; }
-        .card-search-result { display:block; width:100%; margin:7px 0 0; padding:10px 12px; text-align:left; border:1px solid #e5e7eb; border-radius:8px; background:#f8fafc; }
+        #card-search-input { box-sizing:border-box; width:100%; padding:14px 15px; border:1px solid #cbd5e1; border-radius:10px; font:inherit; font-size:17px; }
+        #card-search-results { margin-top:16px; display:grid; gap:8px; }
+        .card-search-result { display:block; width:100%; margin:0; padding:14px 15px; text-align:left; border:1px solid #e5e7eb; border-radius:11px; background:#f8fafc; color:inherit; }
+        .card-search-result:hover { border-color:#9bb8ff; background:#f1f6ff; }
         .card-search-result strong { display:block; }
-        .card-search-result small { display:block; margin-top:4px; color:#64748b; }
+        .card-search-result small { display:block; margin-top:5px; color:#64748b; }
+        .card-search-kind { display:inline-block; margin-bottom:5px; color:#315ccf; font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
         .card-search-empty { color:#64748b; margin:8px 0 0; }
-        .card-search-preview { margin-top:12px; padding:14px; border:1px solid #cbd5e1; border-radius:8px; background:#f8fafc; }
-        .card-search-preview h3 { margin:0 0 10px; font-size:16px; }
-        .card-search-preview p { margin:6px 0; }
-        body.card-search-open { overflow:hidden; }
+        body.card-search-open { overflow-x:hidden; }
+        body.card-search-page-active #dashboard-metrics,
+        body.card-search-page-active #dashboard-layout,
+        body.card-search-page-active #internal-card-editor { display:none !important; }
+        body.card-search-page-active #card-search-panel { display:block; }
+        @media (max-width:640px) { #card-search-panel { padding:16px; } .card-search-panel-heading strong { font-size:21px; } }
 
         .deck {
 
@@ -1099,10 +1097,11 @@
 
 <section id="card-search-panel" aria-label="Recherche de cartes" aria-hidden="true" hidden>
     <div class="card-search-panel-heading">
-        <strong>Rechercher une carte</strong>
+        <strong>Recherche</strong>
         <button id="card-search-close" type="button" aria-label="Fermer la recherche">✕</button>
     </div>
-    <input id="card-search-input" type="search" placeholder="Mot, traduction, question…" autocomplete="off">
+    <p class="card-search-description">Retrouve un deck, une carte, un mot ou une traduction.</p>
+    <input id="card-search-input" type="search" placeholder="Nom du deck, mot, traduction…" autocomplete="off">
     <div id="card-search-results" aria-live="polite"></div>
 </section>
 
@@ -1205,7 +1204,7 @@
     sidebarClose?.addEventListener("click", () => setSidebarOpen(false));
     sidebarBackdrop?.addEventListener("click", () => setSidebarOpen(false));
     document.addEventListener("keydown", event => {
-        if (event.key === "Escape") { setSidebarOpen(false); setSearchOpen(false); }
+        if (event.key === "Escape") { setSidebarOpen(false); if (document.body.classList.contains("card-search-page-active")) setSearchOpen(false); }
     });
     sidebar?.querySelectorAll("a").forEach(link => {
         link.addEventListener("click", () => setSidebarOpen(false));
@@ -1217,23 +1216,21 @@
     const searchClose = document.getElementById("card-search-close");
     const searchInput = document.getElementById("card-search-input");
     function setSearchOpen(open) {
-        searchPanel?.classList.toggle("open", open);
         if (searchPanel) searchPanel.hidden = !open;
+        document.body.classList.toggle("card-search-page-active", open);
         document.body.classList.toggle("card-search-open", open);
         searchPanel?.setAttribute("aria-hidden", String(!open));
         searchTab?.setAttribute("aria-expanded", String(open));
-        if (open) setTimeout(() => searchInput?.focus(), 100);
+        searchTab?.classList.toggle("active", open);
+        document.querySelector('[data-internal-tab="home"]')?.classList.toggle("active", !open);
+        if (open) setTimeout(() => searchInput?.focus(), 50);
     }
-    searchTab?.addEventListener("click", () => setSearchOpen(true));
-    searchClose?.addEventListener("click", () => setSearchOpen(false));
-
-    // Fermer le panneau dès qu'on clique en dehors de la recherche.
-    document.addEventListener("pointerdown", event => {
-        if (!document.body.classList.contains("card-search-open")) return;
-        const target = event.target;
-        if (searchPanel?.contains(target) || searchTab?.contains(target)) return;
-        setSearchOpen(false);
+    searchTab?.addEventListener("click", () => {
+        if (document.body.classList.contains("card-search-page-active")) return;
+        setSearchOpen(true);
     });
+    searchClose?.addEventListener("click", () => setSearchOpen(false));
+    document.querySelector('[data-internal-tab="home"]')?.addEventListener("click", () => setSearchOpen(false));
 
 
     // ==============================
