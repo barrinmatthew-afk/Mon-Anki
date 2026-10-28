@@ -7,6 +7,9 @@ const $ = id => document.getElementById(id);
 const timerElement = $("study-timer");
 const statsPage = Boolean($("study-history"));
 let lastTick = Date.now(), lastSync = 0, cloudStats = [], firebase = null;
+// Figer la matière au démarrage de la session : une modification de selectedDeck
+// ailleurs ne doit pas reclasser les minutes déjà étudiées.
+const sessionSubject = currentSubject();
 
 function dateKey(date = new Date()) {
     return date.getFullYear() + "-" + String(date.getMonth()+1).padStart(2,"0") + "-" + String(date.getDate()).padStart(2,"0");
@@ -26,7 +29,7 @@ function addStudySeconds(seconds) {
     const today = dateKey();
     localStorage.setItem(key(today), String(localSeconds(today) + seconds));
     const subjects = readSubjects(today);
-    const name = currentSubject();
+    const name = sessionSubject;
     subjects[name] = Math.max(0, Number(subjects[name]) || 0) + seconds;
     localStorage.setItem(subjectKey(today), JSON.stringify(subjects));
 }
@@ -158,7 +161,7 @@ setup();
 setInterval(()=>{
     const now=Date.now();
     if(!statsPage && !document.hidden) {
-        const elapsed=Math.min(5,Math.max(0,(now-lastTick)/1000));
+        const elapsed=Math.max(0,(now-lastTick)/1000);
         addStudySeconds(elapsed); renderTimer();
         if(now-lastSync>=15000) void syncCloud();
     }
