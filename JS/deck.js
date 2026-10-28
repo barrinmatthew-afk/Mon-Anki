@@ -1313,12 +1313,20 @@ function renderCards() {
 
 
                     if (index !== -1) {
+                        // La clé de suppression est stable entre appareils et ne dépend pas de l'index.
+                        try {
+                            const word = String(card.word ?? "").trim().toLocaleLowerCase();
+                            const answer = String(card.answer ?? "").trim().toLocaleLowerCase();
+                            const mode = String(card.mode ?? "").trim().toLocaleLowerCase();
+                            const key = JSON.stringify([deck.name, word, answer, mode]);
+                            const deleted = JSON.parse(localStorage.getItem("monanki_deleted_card_keys") || "[]");
+                            localStorage.setItem("monanki_deleted_card_keys", JSON.stringify([...new Set([...deleted, key])]));
+                        } catch (error) { console.warn("Impossible d'enregistrer la suppression cloud de la carte.", error); }
 
                         deck.cards.splice(
                             index,
                             1
                         );
-
                     }
 
 
