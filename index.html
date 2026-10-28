@@ -986,6 +986,14 @@
     searchTab?.addEventListener("click", () => setSearchOpen(true));
     searchClose?.addEventListener("click", () => setSearchOpen(false));
 
+    // Fermer le panneau dès qu'on clique en dehors de la recherche.
+    document.addEventListener("pointerdown", event => {
+        if (!document.body.classList.contains("card-search-open")) return;
+        const target = event.target;
+        if (searchPanel?.contains(target) || searchTab?.contains(target)) return;
+        setSearchOpen(false);
+    });
+
 
     // ==============================
     // MODE HORS LIGNE
