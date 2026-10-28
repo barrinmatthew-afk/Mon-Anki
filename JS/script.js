@@ -1490,7 +1490,61 @@ export function initializeApp() {
             cardSearchResults.appendChild(result);
         };
 
+
+        const dictionaryButton = document.getElementById("dictionary-search-button");
+        const difficultButton = document.getElementById("difficult-cards-button");
+        let showingDifficultOnly = false;
+
+        const renderDifficultCards = () => {
+            const decks = loadDecks();
+            const matches = [];
+            decks.forEach(deck => (Array.isArray(deck.cards) ? deck.cards : []).forEach((card, index) => {
+                if (card && card.difficult === true) matches.push({ deck, card, index });
+            }));
+            cardSearchResults.replaceChildren();
+            if (!matches.length) {
+                const empty = document.createElement("p");
+                empty.className = "card-search-empty";
+                empty.textContent = "Aucune carte marquée comme difficile pour le moment.";
+                cardSearchResults.appendChild(empty);
+                return;
+            }
+            matches.slice(0, 50).forEach(({deck, card, index}) => {
+                const title = [card.word, card.question, card.front, card.expression, card.term].find(value => typeof value === "string" && value.trim()) || "Carte " + (index + 1);
+                const detail = [card.answer, card.translation, card.back, card.meaning, card.definition].find(value => typeof value === "string" && value.trim()) || "";
+                makeSearchResult("⚑ Carte difficile", title, detail + " · Deck : " + deck.name, () => {
+                    openInternalCardTab(deck.name, index);
+                    document.getElementById("card-search-close")?.click();
+                });
+            });
+            if (matches.length > 50) {
+                const more = document.createElement("p");
+                more.className = "card-search-empty";
+                more.textContent = "50 cartes affichées sur " + matches.length + ".";
+                cardSearchResults.appendChild(more);
+            }
+        };
+
+        dictionaryButton?.addEventListener("click", () => {
+            const term = cardSearchInput.value.trim();
+            if (!term) {
+                cardSearchInput.focus();
+                cardSearchInput.placeholder = "Écris d'abord un mot à chercher…";
+                return;
+            }
+            window.open("https://www.wiktionary.org/search-redirect.php?search=" + encodeURIComponent(term), "_blank", "noopener,noreferrer");
+        });
+
+        difficultButton?.addEventListener("click", () => {
+            showingDifficultOnly = !showingDifficultOnly;
+            difficultButton.setAttribute("aria-pressed", String(showingDifficultOnly));
+            difficultButton.textContent = showingDifficultOnly ? "← Revenir à la recherche" : "⚑ Afficher les cartes difficiles";
+            if (showingDifficultOnly) renderDifficultCards();
+            else renderSearchResults();
+        });
+
         const renderSearchResults = () => {
+            if (showingDifficultOnly) { renderDifficultCards(); return; }
             const rawQuery = cardSearchInput.value.trim();
             const query = normalizeSearch(rawQuery);
             cardSearchResults.replaceChildren();
