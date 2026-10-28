@@ -165,50 +165,34 @@
 
 
 
-        #card-search-section {
-            margin: 0 0 22px;
-            padding: 14px 16px;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            background: #fff;
-        }
-        #card-search-section label {
-            display: block;
-            margin-bottom: 8px;
+
+        #card-search-tab {
+            position: fixed; z-index: 990; right: 0; top: 42%;
+            writing-mode: vertical-rl; transform: rotate(180deg);
+            border: 1px solid #cbd5e1; border-right: 0; border-radius: 9px 0 0 9px;
+            padding: 14px 10px; margin: 0; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.12);
             font-weight: 700;
         }
-        #card-search-input {
-            box-sizing: border-box;
-            width: 100%;
-            padding: 11px 12px;
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
-            font: inherit;
+        #card-search-panel {
+            position: fixed; z-index: 1200; inset: 0 0 0 auto; width: min(390px, 92vw);
+            box-sizing: border-box; padding: 20px; overflow-y: auto; background: #fff;
+            box-shadow: -8px 0 28px rgba(0,0,0,.18); transform: translateX(105%);
+            transition: transform .22s ease;
         }
-        #card-search-results { margin-top: 10px; }
-        .card-search-result {
-            display: block;
-            width: 100%;
-            margin: 7px 0 0;
-            padding: 10px 12px;
-            text-align: left;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            background: #f8fafc;
-        }
-        .card-search-result strong { display: block; }
-        .card-search-result small { display: block; margin-top: 4px; color: #64748b; }
-        .card-search-empty { color: #64748b; margin: 8px 0 0; }
-        .card-search-preview {
-            margin-top: 12px;
-            padding: 14px;
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
-            background: #f8fafc;
-        }
-        .card-search-preview h3 { margin: 0 0 10px; font-size: 16px; }
-        .card-search-preview p { margin: 6px 0; }
-
+        #card-search-panel.open { transform: translateX(0); }
+        .card-search-panel-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; }
+        .card-search-panel-heading strong { font-size:20px; }
+        #card-search-close { margin:0; padding:8px 11px; font-size:18px; }
+        #card-search-input { box-sizing:border-box; width:100%; padding:11px 12px; border:1px solid #cbd5e1; border-radius:8px; font:inherit; }
+        #card-search-results { margin-top:10px; }
+        .card-search-result { display:block; width:100%; margin:7px 0 0; padding:10px 12px; text-align:left; border:1px solid #e5e7eb; border-radius:8px; background:#f8fafc; }
+        .card-search-result strong { display:block; }
+        .card-search-result small { display:block; margin-top:4px; color:#64748b; }
+        .card-search-empty { color:#64748b; margin:8px 0 0; }
+        .card-search-preview { margin-top:12px; padding:14px; border:1px solid #cbd5e1; border-radius:8px; background:#f8fafc; }
+        .card-search-preview h3 { margin:0 0 10px; font-size:16px; }
+        .card-search-preview p { margin:6px 0; }
+        body.card-search-open { overflow:hidden; }
 
         .deck {
 
@@ -827,11 +811,15 @@
 </div>
 
 
-<section id="card-search-section" aria-label="Rechercher des cartes">
-    <label for="card-search-input">🔎 Rechercher une carte</label>
+<button id="card-search-tab" type="button" aria-controls="card-search-panel" aria-expanded="false">🔎 Recherche</button>
+<aside id="card-search-panel" aria-label="Recherche de cartes" aria-hidden="true">
+    <div class="card-search-panel-heading">
+        <strong>Rechercher une carte</strong>
+        <button id="card-search-close" type="button" aria-label="Fermer la recherche">✕</button>
+    </div>
     <input id="card-search-input" type="search" placeholder="Mot, traduction, question…" autocomplete="off">
     <div id="card-search-results" aria-live="polite"></div>
-</section>
+</aside>
 
 <div id="decks-container"></div>
 
@@ -933,11 +921,27 @@
     sidebarClose?.addEventListener("click", () => setSidebarOpen(false));
     sidebarBackdrop?.addEventListener("click", () => setSidebarOpen(false));
     document.addEventListener("keydown", event => {
-        if (event.key === "Escape") setSidebarOpen(false);
+        if (event.key === "Escape") { setSidebarOpen(false); setSearchOpen(false); }
     });
     sidebar?.querySelectorAll("a").forEach(link => {
         link.addEventListener("click", () => setSidebarOpen(false));
     });
+
+    // Recherche accessible depuis un onglet fixe à droite.
+    const searchPanel = document.getElementById("card-search-panel");
+    const searchTab = document.getElementById("card-search-tab");
+    const searchClose = document.getElementById("card-search-close");
+    const searchInput = document.getElementById("card-search-input");
+    function setSearchOpen(open) {
+        searchPanel?.classList.toggle("open", open);
+        document.body.classList.toggle("card-search-open", open);
+        searchPanel?.setAttribute("aria-hidden", String(!open));
+        searchTab?.setAttribute("aria-expanded", String(open));
+        if (open) setTimeout(() => searchInput?.focus(), 100);
+    }
+    searchTab?.addEventListener("click", () => setSearchOpen(true));
+    searchClose?.addEventListener("click", () => setSearchOpen(false));
+
 
     // ==============================
     // MODE HORS LIGNE
