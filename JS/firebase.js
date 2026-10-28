@@ -417,6 +417,8 @@ function writeLocalDecks(decks) {
             JSON.stringify(decks)
         );
 
+        // Informer l’accueil que les données distantes ont été fusionnées.
+        window.dispatchEvent(new CustomEvent("cloudDecksSynced"));
         return true;
     } catch (error) {
         console.error(
