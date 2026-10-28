@@ -116,19 +116,35 @@ const referenceDrawing =
 
 const cardExtraTools = document.getElementById("card-extra-tools");
 const cardDictionaryButton = document.getElementById("card-dictionary-button");
+const cardDictionaryTerm = document.getElementById("card-dictionary-term");
+const cardDictionarySource = document.getElementById("card-dictionary-source");
 const cardDifficultButton = document.getElementById("card-difficult-button");
 
 function getCurrentSearchTerm() {
     if (!currentCard) return "";
     const pair = getQuestionAndAnswer(currentCard);
-    // Chercher d'abord le mot visible au recto, sinon la réponse révélée.
     return String(pair.question || pair.answer || "").trim();
 }
 
 function openDictionaryForCurrentCard() {
-    const term = getCurrentSearchTerm();
-    if (!term) return;
-    const url = "https://www.wiktionary.org/search-redirect.php?search=" + encodeURIComponent(term);
+    const term = String(cardDictionaryTerm?.value || "").trim();
+    if (!term) {
+        cardDictionaryTerm?.focus();
+        if (cardDictionaryTerm) cardDictionaryTerm.placeholder = "Écris le mot ou l'expression à rechercher…";
+        return;
+    }
+    const source = cardDictionarySource?.value || "web";
+    const encoded = encodeURIComponent(term);
+    let url;
+    if (source === "nl-fr") {
+        url = "https://context.reverso.net/translation/dutch-french/" + encoded;
+    } else if (source === "ja-en") {
+        url = "https://jisho.org/search/" + encoded;
+    } else if (source === "ja-nl") {
+        url = "https://www.google.com/search?q=" + encodeURIComponent("site:japansnederlandswoordenboek.org " + term);
+    } else {
+        url = "https://www.google.com/search?q=" + encodeURIComponent(term + " dictionary translation");
+    }
     window.open(url, "_blank", "noopener,noreferrer");
 }
 
@@ -613,6 +629,7 @@ function displayCard() {
     );
 
     cardExtraTools?.classList.add("hidden");
+    if (cardDictionaryTerm) cardDictionaryTerm.value = "";
     refreshDifficultButton();
 
     resultElement.textContent =
@@ -773,6 +790,7 @@ function showAnswer() {
             "none";
 
         cardExtraTools?.classList.remove("hidden");
+        if (cardDictionaryTerm) cardDictionaryTerm.value = getCurrentSearchTerm();
         refreshDifficultButton();
 
         ratingArea.classList.remove(
@@ -793,6 +811,7 @@ function showAnswer() {
 
     // Le dictionnaire n'est disponible qu'après révélation de la réponse.
     cardExtraTools?.classList.remove("hidden");
+    if (cardDictionaryTerm) cardDictionaryTerm.value = getCurrentSearchTerm();
     refreshDifficultButton();
 
     showArea.style.display =
