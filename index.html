@@ -1344,7 +1344,7 @@
                     window.location.reload();
                 } catch (error) {
                     console.error("Erreur lors de la synchronisation manuelle :", error);
-                    if (syncStatus) syncStatus.textContent = "Échec de la synchronisation. Vérifie ta connexion puis réessaie.";
+                    if (syncStatus) syncStatus.textContent = `Échec de la synchronisation : ${error?.code || error?.name || "erreur"} — ${error?.message || "détail indisponible"}`;
                     manualSyncButton.disabled = false;
                     manualSyncButton.textContent = "↻ Réessayer la synchronisation";
                 }
