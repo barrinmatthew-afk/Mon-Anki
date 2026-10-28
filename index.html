@@ -542,6 +542,32 @@
 
         }
 
+
+        .internal-tabs { display:flex; align-items:flex-end; gap:6px; margin:0 0 22px; padding:8px 8px 0; border-bottom:1px solid #cbd5e1; overflow-x:auto; }
+        .internal-tab { flex:0 0 auto; margin:0; padding:10px 13px; border:1px solid #cbd5e1; border-bottom:0; border-radius:9px 9px 0 0; background:#f1f5f9; white-space:nowrap; }
+        .internal-tab.active { background:#fff; font-weight:700; box-shadow:0 2px 0 #fff; }
+        #card-internal-tabs { display:flex; gap:6px; }
+        .internal-tab-close { margin-left:9px; padding:0 2px; border:0; background:transparent; font-size:16px; }
+        #internal-card-editor { border:1px solid #dbe2ea; border-radius:12px; padding:22px; margin-bottom:24px; background:#fff; }
+        #internal-card-editor[hidden] { display:none; }
+        .internal-editor-field { display:block; margin:16px 0; font-weight:650; }
+        .internal-editor-field span { display:block; margin-bottom:6px; }
+        .internal-editor-field textarea, .internal-editor-field select { width:100%; box-sizing:border-box; padding:11px; border:1px solid #cbd5e1; border-radius:8px; font:inherit; font-weight:400; }
+        .internal-editor-field textarea { min-height:65px; resize:vertical; }
+        .internal-editor-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:20px; }
+        .internal-editor-actions button { margin:0; }
+        .internal-editor-status { min-height:1.4em; color:#166534; font-weight:600; }
+        body.card-editor-active #account-section,
+        body.card-editor-active #card-search-tab,
+        body.card-editor-active #decks-container,
+        body.card-editor-active #forecast-section,
+        body.card-editor-active #sync-section { display:none !important; }
+        @media (max-width:600px) {
+            .internal-tabs { margin-bottom:16px; padding-left:2px; padding-right:2px; }
+            .internal-tab { padding:9px 10px; }
+            #internal-card-editor { padding:15px; }
+        }
+
         .forecast-total { margin: 10px 0 16px; padding: 13px 15px; border-radius: 9px; background: #f1f5f9; font-size: 18px; font-weight: 700; }
         .card-search-editor { margin-top: 14px; padding-top: 14px; border-top: 1px solid #e5e7eb; }
         .card-search-editor h3 { margin: 0 0 8px; font-size: 18px; }
@@ -760,6 +786,12 @@
         <p class="subtitle">Choisis un deck à étudier.</p>
     </div>
 </div>
+
+<nav id="internal-tabs" class="internal-tabs" aria-label="Onglets Mon Anki">
+    <button type="button" class="internal-tab active" data-internal-tab="home">Accueil</button>
+    <div id="card-internal-tabs"></div>
+</nav>
+<section id="internal-card-editor" hidden aria-label="Modifier une carte"></section>
 
 <div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
 <aside id="app-sidebar" class="app-sidebar" aria-label="Menu principal" aria-hidden="true">
