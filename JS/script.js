@@ -1462,7 +1462,7 @@ export function initializeApp() {
     homeInternalTab?.addEventListener("click", () => setActiveInternalTab("home"));
 
     /* =========================
-       RECHERCHE DE CARTES
+       RECHERCHE GLOBALE : DECKS, CARTES ET MOTS
     ========================= */
     const cardSearchInput = document.getElementById("card-search-input");
     const cardSearchResults = document.getElementById("card-search-results");
@@ -1474,57 +1474,93 @@ export function initializeApp() {
             .toLocaleLowerCase()
             .trim();
 
-        cardSearchInput.addEventListener("input", () => {
-            const query = normalizeSearch(cardSearchInput.value);
-            cardSearchResults.replaceChildren();
-            if (!query) return;
+        const makeSearchResult = (kind, titleText, detailText, onClick) => {
+            const result = document.createElement("button");
+            result.type = "button";
+            result.className = "card-search-result";
+            const kindLabel = document.createElement("span");
+            kindLabel.className = "card-search-kind";
+            kindLabel.textContent = kind;
+            const title = document.createElement("strong");
+            title.textContent = titleText;
+            const detail = document.createElement("small");
+            detail.textContent = detailText;
+            result.append(kindLabel, title, detail);
+            result.addEventListener("click", onClick);
+            cardSearchResults.appendChild(result);
+        };
 
-            const matches = [];
-            loadDecks().forEach(deck => {
+        const renderSearchResults = () => {
+            const rawQuery = cardSearchInput.value.trim();
+            const query = normalizeSearch(rawQuery);
+            cardSearchResults.replaceChildren();
+            if (!query) {
+                const hint = document.createElement("p");
+                hint.className = "card-search-empty";
+                hint.textContent = "Commence à taper pour rechercher dans tes decks et tes cartes.";
+                cardSearchResults.appendChild(hint);
+                return;
+            }
+
+            const decks = loadDecks();
+            const deckMatches = decks.filter(deck => normalizeSearch(deck.name).includes(query));
+            const cardMatches = [];
+            decks.forEach(deck => {
                 (Array.isArray(deck.cards) ? deck.cards : []).forEach((card, index) => {
-                    const searchable = normalizeSearch([
-                        card.word, card.answer, card.question, card.translation,
-                        card.front, card.back, card.meaning, card.expression
-                    ].filter(value => typeof value === "string").join(" "));
-                    if (searchable.includes(query)) matches.push({ deck, card, index });
+                    const fields = Object.entries(card || {})
+                        .filter(([key, value]) => typeof value === "string" && !["id"].includes(key))
+                        .map(([, value]) => value);
+                    if (normalizeSearch(fields.join(" ")).includes(query)) cardMatches.push({ deck, card, index });
                 });
             });
 
-            if (!matches.length) {
+            if (!deckMatches.length && !cardMatches.length) {
                 const empty = document.createElement("p");
                 empty.className = "card-search-empty";
-                empty.textContent = "Aucune carte trouvée pour « " + cardSearchInput.value.trim() + " ».";
+                empty.textContent = "Aucun deck ni aucune carte trouvés pour « " + rawQuery + " ». ";
                 cardSearchResults.appendChild(empty);
                 return;
             }
 
-            matches.slice(0, 20).forEach(({ deck, card, index }) => {
-                const result = document.createElement("button");
-                result.type = "button";
-                result.className = "card-search-result";
+            deckMatches.slice(0, 10).forEach(deck => {
+                const count = Array.isArray(deck.cards) ? deck.cards.length : 0;
+                makeSearchResult("Deck", deck.name, count + (count === 1 ? " carte" : " cartes") + " · Ouvrir le deck dans la liste", () => {
+                    document.querySelector('[data-internal-tab="home"]')?.click();
+                    setTimeout(() => {
+                        const deckElements = [...document.querySelectorAll("#decks-container .deck")];
+                        const target = deckElements.find(element => element.querySelector(".deck-name")?.textContent.trim() === deck.name);
+                        target?.scrollIntoView({ behavior: "smooth", block: "center" });
+                        if (target) {
+                            target.style.outline = "3px solid #93b4ff";
+                            setTimeout(() => { target.style.outline = ""; }, 1800);
+                        }
+                    }, 80);
+                });
+            });
 
-                const title = document.createElement("strong");
-                title.textContent = [card.word, card.question, card.front, card.expression]
+            cardMatches.slice(0, 30).forEach(({ deck, card, index }) => {
+                const title = [card.word, card.question, card.front, card.expression, card.term]
                     .find(value => typeof value === "string" && value.trim()) || "Carte " + (index + 1);
-
-                const detail = document.createElement("small");
-                detail.textContent = (card.answer || card.translation || card.back || card.meaning || "") + " — Deck : " + deck.name;
-
-                result.append(title, detail);
-                result.addEventListener("click", () => {
+                const detail = [card.answer, card.translation, card.back, card.meaning, card.definition]
+                    .find(value => typeof value === "string" && value.trim()) || "Deck : " + deck.name;
+                makeSearchResult("Carte / mot", title, detail + " · Deck : " + deck.name, () => {
                     openInternalCardTab(deck.name, index);
                     document.getElementById("card-search-close")?.click();
                 });
-                cardSearchResults.appendChild(result);
             });
 
-            if (matches.length > 20) {
+            const total = deckMatches.length + cardMatches.length;
+            const shown = Math.min(deckMatches.length, 10) + Math.min(cardMatches.length, 30);
+            if (total > shown) {
                 const more = document.createElement("p");
                 more.className = "card-search-empty";
-                more.textContent = "Affichage des 20 premiers résultats sur " + matches.length + ".";
+                more.textContent = shown + " résultats affichés sur " + total + ". Affine ta recherche pour en voir d'autres.";
                 cardSearchResults.appendChild(more);
             }
-        });
+        };
+
+        cardSearchInput.addEventListener("input", renderSearchResults);
+        renderSearchResults();
     }
 
     /* =========================
