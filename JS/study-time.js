@@ -40,17 +40,25 @@ function formatTime(seconds) {
     if(m) return m + " min";
     return seconds + " s";
 }
+function combinedTodaySeconds() {
+    // Le temps local remplace la copie cloud de cet appareil ; on additionne
+    // seulement les autres appareils pour éviter de compter deux fois le même temps.
+    const today = dateKey();
+    const otherDevicesSeconds = cloudStats
+        .filter(item => item.date === today && item.deviceId !== deviceId)
+        .reduce((total, item) => total + Math.max(0, Number(item.seconds) || 0), 0);
+    return Math.max(0, localSeconds()) + otherDevicesSeconds;
+}
 function renderTimer() {
-    if(timerElement) timerElement.textContent = "Temps étudié aujourd’hui : " + formatTime(localSeconds());
+    if(timerElement) timerElement.textContent = "Temps étudié aujourd’hui (tous appareils) : " + formatTime(combinedTodaySeconds());
 }
 async function syncCloud() {
     if(!firebase || !navigator.onLine) return;
     try {
         await firebase.saveStudyTime(dateKey(), deviceId, localSeconds(), readSubjects());
-        if(statsPage) {
-            cloudStats = await firebase.loadStudyTimeStats() || [];
-            renderHistory();
-        }
+        cloudStats = await firebase.loadStudyTimeStats() || [];
+        renderTimer();
+        if(statsPage) renderHistory();
         lastSync = Date.now();
     } catch(error) { console.warn("Synchronisation du temps d’étude reportée.", error); }
 }
