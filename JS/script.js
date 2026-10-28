@@ -698,8 +698,16 @@ function displayForecast() {
     const chart = document.getElementById("forecast-chart");
     if (!chart) return;
 
-    const forecast = getForecast();
-    const decks = loadDecks();
+    let forecast;
+    try {
+        forecast = getForecast();
+    } catch (error) {
+        console.error("Impossible de calculer les prochaines révisions :", error);
+        const totalElement = document.getElementById("forecast-total");
+        if (totalElement) totalElement.textContent = "Impossible de calculer le total. Actualise la page.";
+        chart.textContent = "Erreur lors du calcul de la timeline.";
+        return;
+    }
     const totalNext24Hours = forecast.reduce((sum, item) => sum + item.count, 0);
     const totalElement = document.getElementById("forecast-total");
     if (totalElement) {
@@ -1317,77 +1325,10 @@ export function initializeApp() {
 
                 result.append(title, detail);
                 result.addEventListener("click", () => {
-                    cardSearchResults.replaceChildren();
-                    const editor = document.createElement("form");
-                    editor.className = "card-search-editor";
-                    const heading = document.createElement("h3");
-                    heading.textContent = "Consulter / modifier la carte";
-                    const deckInfo = document.createElement("p");
-                    deckInfo.className = "card-search-editor-deck";
-                    deckInfo.textContent = "Deck : " + deck.name;
-                    editor.append(heading, deckInfo);
-
-                    const editableFields = [
-                        ["word", "Mot / recto"], ["answer", "Réponse / verso"],
-                        ["question", "Question"], ["translation", "Traduction"],
-                        ["front", "Recto"], ["back", "Verso"], ["meaning", "Sens"],
-                        ["expression", "Expression"], ["example", "Exemple"],
-                        ["notes", "Notes"], ["hint", "Indice"]
-                    ].filter(([key]) => typeof card[key] === "string");
-
-                    if (!editableFields.length) {
-                        const notice = document.createElement("p");
-                        notice.textContent = "Cette carte ne contient pas de champ texte reconnu à modifier.";
-                        editor.appendChild(notice);
-                    } else {
-                        editableFields.forEach(([key, labelText]) => {
-                            const label = document.createElement("label");
-                            label.className = "card-search-edit-label";
-                            label.textContent = labelText;
-                            const input = document.createElement("textarea");
-                            input.rows = card[key].length > 100 ? 4 : 2;
-                            input.value = card[key];
-                            input.dataset.field = key;
-                            label.appendChild(input);
-                            editor.appendChild(label);
-                        });
-                    }
-
-                    const actions = document.createElement("div");
-                    actions.className = "card-search-editor-actions";
-                    const save = document.createElement("button");
-                    save.type = "submit";
-                    save.textContent = "Enregistrer";
-                    save.disabled = !editableFields.length;
-                    const cancel = document.createElement("button");
-                    cancel.type = "button";
-                    cancel.textContent = "Retour aux résultats";
-                    cancel.addEventListener("click", () => cardSearchInput.dispatchEvent(new Event("input")));
-                    actions.append(save, cancel);
-                    editor.appendChild(actions);
-
-                    editor.addEventListener("submit", event => {
-                        event.preventDefault();
-                        const currentDecks = loadDecks();
-                        const deckIndex = currentDecks.findIndex(item => item.name === deck.name);
-                        if (deckIndex < 0 || !Array.isArray(currentDecks[deckIndex].cards) || !currentDecks[deckIndex].cards[index]) {
-                            alert("La carte n’a pas été retrouvée. Relance la recherche puis réessaie.");
-                            return;
-                        }
-                        const currentCard = currentDecks[deckIndex].cards[index];
-                        editor.querySelectorAll("[data-field]").forEach(input => {
-                            currentCard[input.dataset.field] = input.value;
-                        });
-                        saveDecks(currentDecks);
-                        displayDecks();
-                        displayForecast();
-                        const saved = document.createElement("p");
-                        saved.className = "card-search-saved";
-                        saved.textContent = "✓ Carte enregistrée.";
-                        editor.prepend(saved);
-                        save.disabled = true;
-                    });
-                    cardSearchResults.appendChild(editor);
+                    const editUrl = new URL("edit-card.html", window.location.href);
+                    editUrl.searchParams.set("deck", deck.name);
+                    editUrl.searchParams.set("index", String(index));
+                    window.open(editUrl.href, "_blank", "noopener");
                 });
                 cardSearchResults.appendChild(result);
             });
