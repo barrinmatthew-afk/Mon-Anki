@@ -20,6 +20,7 @@ import {
     persistentLocalCache,
     doc,
     getDoc,
+    getDocFromServer,
     setDoc,
     serverTimestamp,
     onSnapshot,
@@ -160,7 +161,9 @@ export async function loadCloudDecks() {
         return null;
     }
 
-    const snapshot = await getDoc(userRef);
+    // Pour la synchronisation multi-appareils, ne jamais fusionner une copie cachee potentiellement ancienne.
+    // Exiger une lecture du serveur avant de re-enregistrer la liste complete des decks.
+    const snapshot = await getDocFromServer(userRef);
 
     if (!snapshot.exists()) {
         return null;
