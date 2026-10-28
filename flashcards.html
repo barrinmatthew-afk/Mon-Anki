@@ -176,6 +176,11 @@
             #drawing-canvas { max-width: 100%; height: auto; }
             .writing-area button, .drawing-area button { max-width: 100%; }
         }
+    
+        .card-extra-tools { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin-top:16px; }
+        .card-extra-tools button { margin:0; }
+        #card-difficult-button.is-difficult { background:#fff2e5!important; border-color:#e7a45b!important; color:#8b4513!important; }
+        @media(max-width:600px){.card-extra-tools{flex-direction:column}.card-extra-tools button{width:100%}}
     </style>
 
 <style>
@@ -348,6 +353,11 @@ body{padding:clamp(14px,3vw,32px)!important;min-height:100vh}
             id="meta"
             class="meta"
         ></div>
+
+        <div id="card-extra-tools" class="card-extra-tools hidden">
+            <button id="card-dictionary-button" type="button">📖 Chercher dans le dictionnaire</button>
+            <button id="card-difficult-button" type="button" aria-pressed="false">⚑ Marquer comme difficile</button>
+        </div>
 
     </div>
 
