@@ -189,10 +189,7 @@
             ← Accueil
         </a>
 
-        <div
-            id="progress"
-            class="progress"
-        ></div>
+        <div style="text-align:right"><div id="progress" class="progress"></div><div id="study-timer" style="margin-top:6px;font-size:13px;color:#555">Temps étudié aujourd’hui : 0 s</div></div>
 
     </div>
 
@@ -408,6 +405,7 @@
         // Charger les cartes en premier : elles ne dépendent pas
         // du chargement de Firebase pour s'afficher.
         await import("./JS/flashcards.js");
+        import("./JS/study-time.js").catch(error => console.warn("Minuteur indisponible :", error));
 
         // Tenter de charger Firebase en arrière-plan.
         // Si Internet est absent, les révisions locales continuent.
