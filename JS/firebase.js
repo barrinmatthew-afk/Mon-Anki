@@ -499,20 +499,25 @@ export async function syncLocalDecksWithCloud(options = {}) {
             await saveDecksToCloud(merged);
 
             console.info(
-                "Fusion locale/cloud terminée."
+                "Fusion locale/cloud terminée et enregistrée dans le cloud."
             );
+            return true;
         } catch (error) {
             console.warn(
                 "Synchronisation indisponible. Les decks locaux restent utilisables :",
                 error
             );
+            return false;
         }
     })();
 
     syncPromise = task;
 
     if (options.waitForCompletion === true) {
-        await task;
+        const success = await task;
+        if (success === false) {
+            throw new Error("La synchronisation cloud a échoué. Les données locales sont conservées.");
+        }
     } else {
         // Ne pas bloquer indéfinimeant l'ouverture sur un réseau lent.
         await Promise.race([
