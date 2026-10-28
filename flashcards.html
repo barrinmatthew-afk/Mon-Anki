@@ -269,6 +269,58 @@ body{padding:clamp(14px,3vw,32px)!important;min-height:100vh}
 .completion{max-width:860px!important;margin:24px auto!important;padding:clamp(24px,5vw,48px)!important;text-align:center;background:#fff!important}
 @media(max-width:600px){body{padding:12px!important}.top{align-items:flex-start!important}#card{min-height:48vh;padding:24px 18px!important;border-radius:18px!important}.answer-buttons{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))}.answer-buttons button{min-height:58px}.completion{border-radius:18px!important}}
 </style>
+
+<style id="compact-card-dictionary">
+    /* Le dictionnaire reste accessible au verso, mais ne domine plus la carte. */
+    #card-extra-tools {
+        width: 100%;
+        max-width: 390px;
+        margin: 12px auto 0;
+        font-size: 12px;
+        color: #64748b;
+    }
+    #card-extra-tools .dictionary-lookup {
+        width: 100%;
+        max-width: 390px;
+        box-sizing: border-box;
+        gap: 5px;
+        margin: 0 auto 8px;
+        padding: 10px 12px;
+        border: 1px solid #e8edf5;
+        border-radius: 12px;
+        background: #f8fafc;
+    }
+    #card-extra-tools .dictionary-lookup label {
+        font-size: 11px;
+        font-weight: 600;
+        color: #64748b;
+    }
+    #card-extra-tools .dictionary-lookup input,
+    #card-extra-tools .dictionary-lookup select {
+        min-height: 34px;
+        padding: 6px 9px !important;
+        font-size: 12px !important;
+        border-radius: 8px !important;
+    }
+    #card-extra-tools .dictionary-lookup button,
+    #card-extra-tools > button {
+        min-height: 34px;
+        padding: 7px 10px !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        border-radius: 8px !important;
+    }
+    #card-extra-tools .dictionary-lookup button {
+        background: #fff !important;
+        color: #52627a !important;
+        border-color: #dfe6f0 !important;
+    }
+    #card-extra-tools > button {
+        display: block;
+        margin: 0 auto;
+    }
+</style>
+
 </head>
 
 
