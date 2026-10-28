@@ -114,6 +114,41 @@ const clearDrawingButton =
 const referenceDrawing =
     document.getElementById("reference-drawing");
 
+const cardExtraTools = document.getElementById("card-extra-tools");
+const cardDictionaryButton = document.getElementById("card-dictionary-button");
+const cardDifficultButton = document.getElementById("card-difficult-button");
+
+function getCurrentSearchTerm() {
+    if (!currentCard) return "";
+    const pair = getQuestionAndAnswer(currentCard);
+    // Chercher d'abord le mot visible au recto, sinon la réponse révélée.
+    return String(pair.question || pair.answer || "").trim();
+}
+
+function openDictionaryForCurrentCard() {
+    const term = getCurrentSearchTerm();
+    if (!term) return;
+    const url = "https://www.wiktionary.org/search-redirect.php?search=" + encodeURIComponent(term);
+    window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function refreshDifficultButton() {
+    if (!cardDifficultButton || !currentCard) return;
+    const difficult = currentCard.difficult === true;
+    cardDifficultButton.textContent = difficult ? "⚑ Retirer des cartes difficiles" : "⚑ Marquer comme difficile";
+    cardDifficultButton.classList.toggle("is-difficult", difficult);
+    cardDifficultButton.setAttribute("aria-pressed", String(difficult));
+}
+
+cardDictionaryButton?.addEventListener("click", openDictionaryForCurrentCard);
+cardDifficultButton?.addEventListener("click", async () => {
+    if (!currentCard) return;
+    currentCard.difficult = currentCard.difficult !== true;
+    currentCard.updatedAt = Date.now();
+    refreshDifficultButton();
+    await saveDecks(decks);
+});
+
 
 // ==============================
 // DECK
@@ -577,6 +612,8 @@ function displayCard() {
         "hidden"
     );
 
+    cardExtraTools?.classList.add("hidden");
+    refreshDifficultButton();
 
     resultElement.textContent =
         "";
@@ -735,6 +772,8 @@ function showAnswer() {
         showArea.style.display =
             "none";
 
+        cardExtraTools?.classList.remove("hidden");
+        refreshDifficultButton();
 
         ratingArea.classList.remove(
             "hidden"
@@ -752,6 +791,9 @@ function showAnswer() {
         "hidden"
     );
 
+    // Le dictionnaire n'est disponible qu'après révélation de la réponse.
+    cardExtraTools?.classList.remove("hidden");
+    refreshDifficultButton();
 
     showArea.style.display =
         "none";
@@ -1752,8 +1794,10 @@ function skipCard() {
     }
 
 
-    queue.shift();
+    currentCard.updatedAt = Date.now();
+    saveDecks(decks);
 
+    queue.shift();
 
     queue.push(
         currentCard
