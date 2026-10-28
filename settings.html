@@ -133,28 +133,6 @@ $("import-file-input").addEventListener("change", () => {
             return;
         }
         const existing = getDecks();
-
-        // Une restauration explicite doit pouvoir rétablir des éléments précédemment supprimés.
-        try {
-            const deletedDecks = new Set(JSON.parse(localStorage.getItem("monanki_deleted_deck_names") || "[]"));
-            const deletedCards = new Set(JSON.parse(localStorage.getItem("monanki_deleted_card_keys") || "[]"));
-            imported.forEach(incoming => {
-                deletedDecks.delete(incoming.name);
-                (incoming.cards || []).forEach(card => {
-                    deletedCards.delete(JSON.stringify([
-                        incoming.name,
-                        String(card?.word ?? "").trim().toLocaleLowerCase(),
-                        String(card?.answer ?? "").trim().toLocaleLowerCase(),
-                        String(card?.mode ?? "").trim().toLocaleLowerCase()
-                    ]));
-                });
-            });
-            localStorage.setItem("monanki_deleted_deck_names", JSON.stringify([...deletedDecks]));
-            localStorage.setItem("monanki_deleted_card_keys", JSON.stringify([...deletedCards]));
-        } catch (error) {
-            console.warn("Les marqueurs de suppression n'ont pas pu être ajustés pendant la restauration.", error);
-        }
-
         let addedDecks = 0, addedCards = 0;
         for (const incoming of imported) {
             let deck = existing.find(item => item.name === incoming.name);
