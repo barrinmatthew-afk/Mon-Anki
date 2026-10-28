@@ -22,7 +22,9 @@ import {
     getDoc,
     setDoc,
     serverTimestamp,
-    onSnapshot
+    onSnapshot,
+    collection,
+    getDocs
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
 
@@ -592,3 +594,20 @@ window.saveDecksToCloud = saveDecksToCloud;
 // Pas de réception automatique en arrière-plan.
 // Les changements venant d'un autre appareil sont récupérés
 // quand l'utilisateur appuie sur « Actualiser / synchroniser ».
+
+
+// Statistiques de temps d'étude, séparées par jour et appareil.
+export async function saveStudyTime(date, deviceId, seconds) {
+    const user = auth.currentUser;
+    if (!user || !date || !deviceId || !Number.isFinite(seconds)) return false;
+    const statsRef = doc(db, "users", user.uid, "studyStats", date + "_" + deviceId);
+    await setDoc(statsRef, { date, deviceId, seconds: Math.max(0, Math.floor(seconds)), updatedAt: serverTimestamp() }, { merge: true });
+    return true;
+}
+
+export async function loadStudyTimeStats() {
+    const user = auth.currentUser;
+    if (!user) return null;
+    const snapshot = await getDocs(collection(db, "users", user.uid, "studyStats"));
+    return snapshot.docs.map(item => item.data());
+}
