@@ -974,6 +974,30 @@
             *, *::before, *::after { transition-duration: .01ms !important; scroll-behavior: auto !important; }
         }
 
+    
+        /* Tableau de bord fonctionnel : données réelles, pas de texte décoratif. */
+        .dashboard-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:0 0 18px; }
+        .dashboard-metric { min-width:0; padding:16px 18px; background:#fff; border:1px solid var(--ui-line,#e3e8f1); border-radius:15px; box-shadow:var(--ui-shadow,0 8px 24px rgba(25,42,75,.055)); }
+        .dashboard-metric-label { color:var(--ui-muted,#64748b); font-size:12px; font-weight:650; }
+        .dashboard-metric-value { color:var(--ui-ink,#182235); font-size:27px; line-height:1.25; font-weight:800; letter-spacing:-.7px; margin-top:5px; }
+        .dashboard-metric-note { color:var(--ui-muted,#64748b); font-size:11px; margin-top:3px; }
+        .dashboard-layout { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(280px,.85fr); gap:18px; align-items:start; }
+        .dashboard-column { min-width:0; }
+        .dashboard-panel-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 0 13px; }
+        .dashboard-panel-heading h2 { font-size:18px; margin:0; }
+        .dashboard-panel-heading span { color:var(--ui-muted,#64748b); font-size:12px; }
+        #decks-container { min-width:0; }
+        #forecast-section { margin-bottom:16px; }
+        #account-section { display:flex; flex-wrap:wrap; align-items:center; gap:9px; }
+        #account-section h2 { flex-basis:100%; font-size:16px; margin:0; }
+        #account-section #user-info { flex-basis:100%; }
+        #sync-section { margin-top:0; }
+        #sync-section h2 { font-size:16px; }
+        .dashboard-layout .deck-group { margin-bottom:12px; }
+        .dashboard-layout .deck { margin-bottom:10px; }
+        @media (max-width:820px) { .dashboard-layout { grid-template-columns:minmax(0,1fr); } .dashboard-metrics { gap:9px; } .dashboard-metric { padding:13px 14px; } .dashboard-metric-value { font-size:23px; } }
+        @media (max-width:460px) { .dashboard-metrics { grid-template-columns:1fr 1fr; } .dashboard-metric:last-child { grid-column:1 / -1; } .dashboard-metric-value { font-size:22px; } .dashboard-panel-heading h2 { font-size:17px; } }
+
     </style>
 
 </head>
@@ -986,7 +1010,7 @@
     <button id="sidebar-open" class="sidebar-open" type="button" aria-label="Ouvrir le menu" aria-controls="app-sidebar" aria-expanded="false">☰</button>
     <div>
         <h1>Mon Anki</h1>
-        <p class="subtitle">Choisis un deck à étudier.</p>
+        <p class="subtitle">Decks, révisions dues et temps d’étude.</p>
     </div>
 </div>
 
@@ -995,6 +1019,12 @@
     <div id="card-internal-tabs"></div>
 </nav>
 <section id="internal-card-editor" hidden aria-label="Modifier une carte"></section>
+
+<section class="dashboard-metrics" id="dashboard-metrics" aria-label="Résumé">
+    <div class="dashboard-metric"><div class="dashboard-metric-label">Temps étudié aujourd’hui</div><div class="dashboard-metric-value" id="dashboard-study-time">—</div><div class="dashboard-metric-note">Sur cet appareil</div></div>
+    <div class="dashboard-metric"><div class="dashboard-metric-label">Cartes à réviser</div><div class="dashboard-metric-value" id="dashboard-due-count">—</div><div class="dashboard-metric-note">Selon les échéances actuelles</div></div>
+    <div class="dashboard-metric"><div class="dashboard-metric-label">Cartes enregistrées</div><div class="dashboard-metric-value" id="dashboard-card-count">—</div><div class="dashboard-metric-note" id="dashboard-deck-count">— decks</div></div>
+</section>
 
 <div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
 <aside id="app-sidebar" class="app-sidebar" aria-label="Menu principal" aria-hidden="true">
@@ -1199,6 +1229,69 @@
 
 
     // ==============================
+    // TABLEAU DE BORD : réorganiser les éléments existants sans changer leurs IDs ni leur logique.
+    const decksContainer = document.getElementById("decks-container");
+    const forecastSection = document.getElementById("forecast-section");
+    const accountSection = document.getElementById("account-section");
+    const syncSection = document.getElementById("sync-section");
+    const dashboardMetrics = document.getElementById("dashboard-metrics");
+
+    if (decksContainer && forecastSection && accountSection && syncSection && dashboardMetrics) {
+        const layout = document.createElement("div");
+        layout.className = "dashboard-layout";
+        layout.id = "dashboard-layout";
+        const deckColumn = document.createElement("section");
+        deckColumn.className = "dashboard-column dashboard-decks-column";
+        deckColumn.setAttribute("aria-label", "Mes decks");
+        const deckHeading = document.createElement("div");
+        deckHeading.className = "dashboard-panel-heading";
+        deckHeading.innerHTML = '<h2>Mes decks</h2><span>Réviser ou gérer</span>';
+        deckColumn.append(deckHeading, decksContainer);
+        const sideColumn = document.createElement("aside");
+        sideColumn.className = "dashboard-column dashboard-side-column";
+        sideColumn.append(forecastSection, accountSection, syncSection);
+        layout.append(deckColumn, sideColumn);
+        dashboardMetrics.after(layout);
+    }
+
+    function formatDashboardTime(seconds) {
+        seconds = Math.max(0, Math.floor(Number(seconds) || 0));
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        if (hours) return hours + " h " + String(minutes).padStart(2, "0") + " min";
+        return minutes + " min";
+    }
+
+    function updateDashboardMetrics() {
+        const now = new Date();
+        const dateKey = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
+        const timeValue = document.getElementById("dashboard-study-time");
+        const dueValue = document.getElementById("dashboard-due-count");
+        const cardsValue = document.getElementById("dashboard-card-count");
+        const decksValue = document.getElementById("dashboard-deck-count");
+        const studySeconds = Number(localStorage.getItem("monAnkiStudySeconds:" + dateKey)) || 0;
+        if (timeValue) timeValue.textContent = formatDashboardTime(studySeconds);
+        const dueCount = Array.from(document.querySelectorAll("#decks-container .deck .due-count")).reduce((sum, el) => {
+            const match = el.textContent.match(/\d+/);
+            return sum + (match ? Number(match[0]) : 0);
+        }, 0);
+        if (dueValue) dueValue.textContent = String(dueCount);
+        let decks = [];
+        try {
+            const parsed = JSON.parse(localStorage.getItem("decks") || "[]");
+            if (Array.isArray(parsed)) decks = parsed;
+        } catch (error) { console.warn("Impossible de lire le résumé des decks.", error); }
+        const cardCount = decks.reduce((sum, deck) => sum + (Array.isArray(deck.cards) ? deck.cards.length : 0), 0);
+        if (cardsValue) cardsValue.textContent = String(cardCount);
+        if (decksValue) decksValue.textContent = decks.length + (decks.length === 1 ? " deck" : " decks");
+    }
+
+    updateDashboardMetrics();
+    const deckMetricTarget = document.getElementById("decks-container");
+    if (deckMetricTarget && "MutationObserver" in window) new MutationObserver(updateDashboardMetrics).observe(deckMetricTarget, { childList:true, subtree:true, characterData:true });
+    window.addEventListener("storage", updateDashboardMetrics);
+    setInterval(updateDashboardMetrics, 10000);
+
     // MODE HORS LIGNE
     // ==============================
 
