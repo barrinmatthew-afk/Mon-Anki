@@ -542,6 +542,17 @@
 
         }
 
+        .forecast-total { margin: 10px 0 16px; padding: 13px 15px; border-radius: 9px; background: #f1f5f9; font-size: 18px; font-weight: 700; }
+        .card-search-editor { margin-top: 14px; padding-top: 14px; border-top: 1px solid #e5e7eb; }
+        .card-search-editor h3 { margin: 0 0 8px; font-size: 18px; }
+        .card-search-editor-deck { color: #64748b; font-size: 13px; overflow-wrap: anywhere; }
+        .card-search-edit-label { display:block; margin: 12px 0; font-weight:600; font-size:14px; }
+        .card-search-edit-label textarea { display:block; width:100%; box-sizing:border-box; margin-top:6px; padding:10px; border:1px solid #cbd5e1; border-radius:7px; font:inherit; font-weight:400; resize:vertical; }
+        .card-search-editor-actions { display:flex; flex-wrap:wrap; gap:6px; margin-top:14px; }
+        .card-search-editor-actions button { margin:0; }
+        .card-search-saved { padding:10px; color:#166534; background:#f0fdf4; border-radius:7px; }
+
+
 
         .forecast-subtitle {
 
@@ -834,6 +845,7 @@
         </div>
         <button id="manual-sync-button" type="button">↻ Actualiser / synchroniser</button>
     </div>
+    <p id="forecast-total" class="forecast-total" aria-live="polite">Calcul du total des prochaines 24 h…</p>
     <div id="forecast-chart" aria-label="Timeline des cartes à réviser"></div>
 </div>
 
