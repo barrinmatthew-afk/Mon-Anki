@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modifier une carte — Mon Anki</title>
+<style>
+:root{color-scheme:light}*{box-sizing:border-box}body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:850px;margin:32px auto;padding:0 18px;color:#1f2937;background:#f8fafc}header,.editor{background:white;border:1px solid #e2e8f0;border-radius:14px;padding:22px;margin-bottom:18px}h1{font-size:26px;margin:0 0 8px}h2{font-size:19px;margin:0 0 6px}p{color:#64748b}.field{display:block;margin:16px 0;font-weight:650}.field span{display:block;margin-bottom:6px}.field textarea{width:100%;min-height:70px;padding:11px;border:1px solid #cbd5e1;border-radius:8px;font:inherit;resize:vertical}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}button,a.button{font:inherit;font-weight:650;padding:10px 15px;border:1px solid #cbd5e1;border-radius:8px;background:white;color:#1f2937;cursor:pointer;text-decoration:none}button.primary{background:#1f2937;color:white;border-color:#1f2937}#status{font-weight:600;white-space:pre-wrap}.muted{font-size:14px}
+</style>
+</head>
+<body>
+<header><h1>Modifier une carte</h1><p id="deck-info">Chargement de la carte…</p><p class="muted">Cette page est ouverte dans un nouvel onglet. Les champs de progression et les échéances de révision ne sont pas modifiés.</p></header>
+<form class="editor" id="card-form"><div id="fields"></div><div class="actions"><button class="primary" type="submit">Enregistrer les modifications</button><button type="button" id="reload">Annuler les modifications</button><a class="button" href="index.html">Retour à Mon Anki</a></div><p id="status" role="status"></p></form>
+<script type="module">
+const params = new URLSearchParams(location.search);
+const deckName = params.get("deck");
+const cardIndex = Number(params.get("index"));
+const fieldsRoot = document.getElementById("fields");
+const status = document.getElementById("status");
+const fieldNames = [
+  ["word","Mot / recto"],["answer","Réponse / verso"],["question","Question"],
+  ["translation","Traduction"],["front","Recto"],["back","Verso"],["meaning","Sens"],
+  ["expression","Expression"],["example","Exemple"],["notes","Notes"],["hint","Indice"]
+];
+function getDecks(){try{return JSON.parse(localStorage.getItem("decks")||"[]")}catch{return []}}
+function getCard(){const decks=getDecks();const deck=decks.find(item=>item.name===deckName);return deck&&Array.isArray(deck.cards)?{decks,deck,card:deck.cards[cardIndex]}:null}
+function render(){
+  fieldsRoot.replaceChildren();
+  const found=getCard();
+  if(!found||!found.card){document.getElementById("deck-info").textContent="Carte introuvable. Retourne à la recherche et ouvre-la à nouveau.";document.querySelector("button[type=submit]").disabled=true;return}
+  document.getElementById("deck-info").textContent="Deck : "+deckName+" · Carte "+(cardIndex+1);
+  let count=0;
+  for(const [key,labelText] of fieldNames){
+    if(typeof found.card[key]!=="string") continue;
+    count++;
+    const label=document.createElement("label");label.className="field";
+    const caption=document.createElement("span");caption.textContent=labelText;
+    const input=document.createElement("textarea");input.value=found.card[key];input.dataset.field=key;input.rows=input.value.length>100?4:2;
+    label.append(caption,input);fieldsRoot.append(label);
+  }
+  if(!count){fieldsRoot.textContent="Aucun champ texte reconnu dans cette carte.";document.querySelector("button[type=submit]").disabled=true}
+}
+document.getElementById("reload").addEventListener("click",()=>{status.textContent="";render()});
+document.getElementById("card-form").addEventListener("submit",async event=>{
+  event.preventDefault();
+  const found=getCard();
+  if(!found||!found.card){status.textContent="Carte introuvable. Aucune modification enregistrée.";return}
+  document.querySelectorAll("[data-field]").forEach(input=>{found.card[input.dataset.field]=input.value});
+  localStorage.setItem("decks",JSON.stringify(found.decks));
+  window.dispatchEvent(new CustomEvent("decksUpdated",{detail:{source:"local"}}));
+  status.textContent="✓ Modifications enregistrées sur cet appareil.";
+  try{
+    const firebase=await import("./JS/firebase.js");
+    await firebase.saveDecksToCloud(found.decks);
+    status.textContent="✓ Modifications enregistrées et synchronisées.";
+  }catch(error){
+    console.warn("Synchronisation cloud non disponible :",error);
+    status.textContent="✓ Enregistré sur cet appareil. La synchronisation cloud n’a pas pu être confirmée.";
+  }
+});
+render();
+</script>
+</body>
+</html>
