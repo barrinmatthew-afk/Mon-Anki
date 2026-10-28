@@ -1365,8 +1365,8 @@
                 try {
                     const currentUser = await waitForAuth();
                     if (currentUser) {
-                        await syncLocalDecksWithCloud();
-                        if (syncStatus) syncStatus.textContent = "✓ Synchronisation terminée.";
+                        await syncLocalDecksWithCloud({ waitForCompletion: true });
+                        if (syncStatus) syncStatus.textContent = "✓ Synchronisation terminée et enregistrée dans le cloud.";
                     } else if (syncStatus) {
                         syncStatus.textContent = "Mode local : actualisation sur cet appareil.";
                     }
@@ -1424,10 +1424,10 @@
                     syncStatus.textContent =
                         "Synchronisation avec Firestore...";
 
-                    await syncLocalDecksWithCloud();
+                    await syncLocalDecksWithCloud({ waitForCompletion: true });
 
                     syncStatus.textContent =
-                        "✓ Synchronisation terminée.";
+                        "✓ Synchronisation terminée et enregistrée dans le cloud.";
                 } else {
                     loginButton.style.display = "inline-block";
                     logoutButton.style.display = "none";
