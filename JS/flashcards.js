@@ -1707,6 +1707,8 @@ async function undoLastRating() {
         card,
         previousState
     );
+    // L'annulation est elle aussi une modification synchronisable.
+    card.updatedAt = Date.now();
 
 
     if (
