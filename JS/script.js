@@ -1532,13 +1532,22 @@ export function initializeApp() {
         };
 
         dictionaryButton?.addEventListener("click", () => {
-            const term = cardSearchInput.value.trim();
+            const termInput = document.getElementById("homepage-dictionary-term");
+            const sourceSelect = document.getElementById("homepage-dictionary-source");
+            const term = String(termInput?.value || "").trim();
             if (!term) {
-                cardSearchInput.focus();
-                cardSearchInput.placeholder = "Écris d'abord un mot à chercher…";
+                termInput?.focus();
+                if (termInput) termInput.placeholder = "Écris le mot ou l'expression à chercher…";
                 return;
             }
-            window.open("https://www.wiktionary.org/search-redirect.php?search=" + encodeURIComponent(term), "_blank", "noopener,noreferrer");
+            const source = sourceSelect?.value || "nl-nl";
+            const encoded = encodeURIComponent(term);
+            let url;
+            if (source === "nl-nl") url = "https://www.woorden.org/woord/" + encoded;
+            else if (source === "ja-en") url = "https://jisho.org/search/" + encoded;
+            else if (source === "ja-nl") url = "https://www.google.com/search?q=" + encodeURIComponent("site:japansnederlandswoordenboek.org " + term);
+            else url = "https://www.google.com/search?q=" + encodeURIComponent(term + " dictionary translation");
+            window.open(url, "_blank", "noopener,noreferrer");
         });
 
         difficultButton?.addEventListener("click", () => {
