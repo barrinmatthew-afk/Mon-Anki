@@ -179,33 +179,18 @@ let pendingDecks = null;
 let saveTimer = null;
 let flushing = false;
 let lastSaveError = null;
+let pendingSaveResolvers = [];
 
 
 export function saveDecksToCloud(decks) {
-    // Toujours renvoyer une Promise pour que les appels
-    // .catch() dans script.js ne provoquent plus d'erreur.
-    if (!auth.currentUser || !Array.isArray(decks)) {
-        return Promise.resolve(false);
-    }
-
-    // Copie indépendante des données à sauvegarder.
+    if (!auth.currentUser || !Array.isArray(decks)) return Promise.resolve(false);
     pendingDecks = JSON.parse(JSON.stringify(decks));
-
-    if (saveTimer) {
-        clearTimeout(saveTimer);
-    }
-
-    // Regrouper les changements rapides.
-    saveTimer = setTimeout(() => {
-        saveTimer = null;
-        void flushCloudSave();
-    }, 500);
-
-    // La demande est programmée ; les erreurs réelles de
-    // Firestore restent gérées dans flushCloudSave().
-    return Promise.resolve(true);
+    const completion = new Promise((resolve, reject) => { pendingSaveResolvers.push({ resolve, reject }); });
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => { saveTimer = null; void flushCloudSave(); }, 500);
+    // Résoudre uniquement après confirmation de l'écriture Firestore.
+    return completion;
 }
-
 
 
 // ==============================
@@ -213,64 +198,27 @@ export function saveDecksToCloud(decks) {
 // ==============================
 
 async function flushCloudSave() {
-    if (
-        flushing ||
-        !pendingDecks ||
-        !auth.currentUser
-    ) {
-        return;
-    }
-
+    if (flushing || pendingDecks === null || !auth.currentUser) return;
     flushing = true;
-
     const decksSnapshot = pendingDecks;
+    const resolversForSnapshot = pendingSaveResolvers.splice(0);
     pendingDecks = null;
-
     try {
         const userRef = userDocument();
-
-        if (userRef) {
-            await setDoc(
-                userRef,
-                {
-                    decks: decksSnapshot,
-                    updatedAt: serverTimestamp()
-                },
-                {
-                    merge: true
-                }
-            );
-
-            lastSaveError = null;
-
-            console.info(
-                "Progression synchronisée avec Firestore."
-            );
-        }
+        if (!userRef) throw new Error('Aucun compte Google connecté.');
+        await setDoc(userRef, { decks: decksSnapshot, updatedAt: serverTimestamp() }, { merge: true });
+        lastSaveError = null;
+        resolversForSnapshot.forEach(({ resolve }) => resolve(true));
+        console.info('Progression synchronisée avec Firestore.');
     } catch (error) {
         lastSaveError = error;
-
-        // Garder la sauvegarde pour réessayer plus tard.
-        if (!pendingDecks) {
-            pendingDecks = decksSnapshot;
-        }
-
-        console.warn(
-            "Sauvegarde cloud en attente :",
-            error
-        );
+        if (pendingDecks === null) pendingDecks = decksSnapshot;
+        resolversForSnapshot.forEach(({ reject }) => reject(error));
+        console.warn('Sauvegarde cloud en attente :', error);
     } finally {
         flushing = false;
-
-        if (
-            pendingDecks &&
-            auth.currentUser &&
-            !saveTimer
-        ) {
-            saveTimer = setTimeout(() => {
-                saveTimer = null;
-                void flushCloudSave();
-            }, lastSaveError ? 2500 : 100);
+        if (pendingDecks !== null && auth.currentUser && !saveTimer) {
+            saveTimer = setTimeout(() => { saveTimer = null; void flushCloudSave(); }, lastSaveError ? 5000 : 100);
         }
     }
 }
@@ -545,8 +493,8 @@ export async function syncLocalDecksWithCloud(options = {}) {
 
             writeLocalDecks(merged);
 
-            // L'envoi cloud est différé et ne bloque pas l'interface.
-            saveDecksToCloud(merged);
+            // Attendre la confirmation réelle de Firestore avant d'annoncer la réussite.
+            await saveDecksToCloud(merged);
 
             console.info(
                 "Fusion locale/cloud terminée."
