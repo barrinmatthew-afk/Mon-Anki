@@ -1,10 +1,12 @@
 
-const CACHE_NAME = "mon-anki-v12";
+const CACHE_NAME = "mon-anki-v13";
 
 const APP_FILES = [
     "./",
     "./index.html",
     "./settings.html",
+    "./study-time.html",
+    "./JS/study-time.js",
     "./flashcards.html",
     "./study.html",
     "./JS/flashcards.js",
