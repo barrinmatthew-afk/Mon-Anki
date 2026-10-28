@@ -556,6 +556,12 @@ function displayDecks() {
                 ]);
                 const remainingDecks = decks.filter(item => !namesToDelete.has(item.name));
 
+                // Garder une trace des suppressions pour empêcher leur résurrection au prochain sync.
+                try {
+                    const deleted = JSON.parse(localStorage.getItem("monanki_deleted_deck_names") || "[]");
+                    localStorage.setItem("monanki_deleted_deck_names", JSON.stringify([...new Set([...deleted, ...namesToDelete])]));
+                } catch (error) { console.warn("Impossible d'enregistrer la suppression cloud du deck.", error); }
+
                 saveDecks(remainingDecks);
                 displayDecks();
                 displayForecast();
