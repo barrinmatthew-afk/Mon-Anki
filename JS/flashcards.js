@@ -136,8 +136,8 @@ function openDictionaryForCurrentCard() {
     const source = cardDictionarySource?.value || "web";
     const encoded = encodeURIComponent(term);
     let url;
-    if (source === "nl-fr") {
-        url = "https://context.reverso.net/translation/dutch-french/" + encoded;
+    if (source === "nl-nl") {
+        url = "https://www.woorden.org/woord/" + encoded;
     } else if (source === "ja-en") {
         url = "https://jisho.org/search/" + encoded;
     } else if (source === "ja-nl") {
