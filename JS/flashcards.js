@@ -123,6 +123,7 @@ const cardContextSentence = document.getElementById("card-context-sentence");
 const cardContextTranslation = document.getElementById("card-context-translation");
 const cardContextSource = document.getElementById("card-context-source");
 const cardContextNewButton = document.getElementById("card-context-new");
+const cardContextGenerateButton = document.getElementById("card-context-generate");
 
 const cardDictionaryPanel = document.getElementById("card-dictionary-panel");
 const cardDictionaryTerm = document.getElementById("card-dictionary-term");
@@ -228,6 +229,88 @@ function extractTatoebaSentences(payload) {
     }).filter(item => item.sentence);
 }
 
+// Générateur local expérimental : aucune API, aucune clé et aucun coût.
+const localDutchContextPatterns = {
+    "zodra": [
+        { sentence: "Ik bel je zodra ik thuis ben.", translation: "Je t’appelle dès que je suis à la maison." },
+        { sentence: "Zodra ik tijd heb, begin ik te studeren.", translation: "Dès que j’ai le temps, je commence à étudier." },
+        { sentence: "Stuur me een bericht zodra je aankomt.", translation: "Envoie-moi un message dès que tu arrives." }
+    ],
+    "omdat": [
+        { sentence: "Ik blijf thuis omdat ik moe ben.", translation: "Je reste à la maison parce que je suis fatigué." },
+        { sentence: "Ik leer Nederlands omdat ik het graag spreek.", translation: "J’apprends le néerlandais parce que j’aime le parler." },
+        { sentence: "Ze neemt een jas mee omdat het koud is.", translation: "Elle emporte une veste parce qu’il fait froid." }
+    ],
+    "hoewel": [
+        { sentence: "Hoewel het regent, gaan we wandelen.", translation: "Bien qu’il pleuve, nous allons nous promener." },
+        { sentence: "Hoewel ik moe ben, maak ik mijn huiswerk.", translation: "Bien que je sois fatigué, je fais mes devoirs." }
+    ],
+    "terwijl": [
+        { sentence: "Ik luister naar muziek terwijl ik studeer.", translation: "J’écoute de la musique pendant que j’étudie." },
+        { sentence: "Zij kookt terwijl hij de tafel dekt.", translation: "Elle cuisine pendant qu’il met la table." }
+    ],
+    "voordat": [
+        { sentence: "Ik drink koffie voordat ik vertrek.", translation: "Je bois du café avant de partir." },
+        { sentence: "Lees de tekst voordat je de vragen beantwoordt.", translation: "Lis le texte avant de répondre aux questions." }
+    ],
+    "nadat": [
+        { sentence: "Nadat ik gegeten heb, ga ik wandelen.", translation: "Après avoir mangé, je vais me promener." },
+        { sentence: "We praten verder nadat de les afgelopen is.", translation: "Nous continuons à discuter après la fin du cours." }
+    ],
+    "tenzij": [
+        { sentence: "Ik ga fietsen, tenzij het te hard regent.", translation: "Je vais faire du vélo, sauf s’il pleut trop fort." },
+        { sentence: "Je mag meegaan, tenzij je geen tijd hebt.", translation: "Tu peux venir, sauf si tu n’as pas le temps." }
+    ],
+    "zodat": [
+        { sentence: "Ik schrijf het op zodat ik het niet vergeet.", translation: "Je le note pour ne pas l’oublier." },
+        { sentence: "Praat langzaam zodat iedereen je begrijpt.", translation: "Parle lentement pour que tout le monde te comprenne." }
+    ],
+    "daarom": [
+        { sentence: "Ik ben moe, daarom ga ik vroeg naar bed.", translation: "Je suis fatigué, c’est pourquoi je me couche tôt." },
+        { sentence: "Het regent; daarom nemen we de bus.", translation: "Il pleut ; c’est pourquoi nous prenons le bus." }
+    ]
+};
+
+function generateLocalContextExample() {
+    const term = getContextSearchTerm();
+    if (!term) return null;
+    const normalized = term.toLocaleLowerCase("nl-NL").trim().replace(/[.!?]+$/, "");
+    const patterns = localDutchContextPatterns[normalized];
+    if (patterns?.length) {
+        const available = patterns.filter(item =>
+            !(currentCard.contextExamples || []).some(old => old.sentence === item.sentence)
+        );
+        const choices = available.length ? available : patterns;
+        const example = choices[Math.floor(Math.random() * choices.length)];
+        return { ...example, id: "local:" + normalized + ":" + example.sentence, generated: true };
+    }
+    return {
+        sentence: "Ik probeer het woord ‘" + term + "’ in een zin te gebruiken.",
+        translation: "J’essaie d’utiliser le mot « " + term + " » dans une phrase.",
+        id: "local:meta:" + normalized,
+        generated: true
+    };
+}
+
+function showLocalContextExample() {
+    if (!currentCard) return;
+    const example = generateLocalContextExample();
+    if (!example) {
+        renderContextExample(null, "Impossible d’identifier le mot sur cette carte.");
+        return;
+    }
+    if (!Array.isArray(currentCard.contextExamples)) currentCard.contextExamples = [];
+    currentCard.contextExamples.push(example);
+    currentCard.contextLastId = example.id;
+    saveDecks(decks);
+    renderContextExample(example);
+    if (cardContextSource) {
+        cardContextSource.textContent = example.id.startsWith("local:meta:")
+            ? "Phrase générée localement · modèle de secours : elle parle du mot, pas nécessairement de son sens naturel."
+            : "Phrase générée localement · modèle grammatical prédéfini, sans IA.";
+    }
+}
+
 function renderContextExample(example, message = "") {
     if (cardContextSentence) cardContextSentence.textContent = example?.sentence || message || "Aucun exemple disponible.";
     if (cardContextTranslation) cardContextTranslation.textContent = example?.translation || (example?.sentence ? "Traduction française non disponible." : "");
@@ -306,6 +389,7 @@ cardContextToggle?.addEventListener("click", async () => {
     if (willOpen) await loadContextExample(false);
 });
 cardContextNewButton?.addEventListener("click", () => loadContextExample(true));
+cardContextGenerateButton?.addEventListener("click", showLocalContextExample);
 
 cardDictionaryButton?.addEventListener("click", openDictionaryForCurrentCard);
 cardDifficultButton?.addEventListener("click", async () => {
