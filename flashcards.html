@@ -279,6 +279,24 @@ body{padding:clamp(14px,3vw,32px)!important;min-height:100vh}
         font-size: 12px;
         color: #64748b;
     }
+    #card-extra-tools .card-tools-actions {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    #card-dictionary-toggle {
+        color: #52627a !important;
+        background: #f8fafc !important;
+        border-color: #e2e8f0 !important;
+    }
+    #card-extra-tools .dictionary-panel {
+        width: 100%;
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid #edf0f6;
+    }
     #card-extra-tools .dictionary-lookup {
         width: 100%;
         max-width: 390px;
@@ -318,6 +336,11 @@ body{padding:clamp(14px,3vw,32px)!important;min-height:100vh}
     #card-extra-tools > button {
         display: block;
         margin: 0 auto;
+    }
+    #card-extra-tools .card-tools-actions button {
+        min-height: 34px;
+        padding: 7px 10px !important;
+        font-size: 12px !important;
     }
 </style>
 
@@ -410,19 +433,24 @@ body{padding:clamp(14px,3vw,32px)!important;min-height:100vh}
         ></div>
 
         <div id="card-extra-tools" class="card-extra-tools hidden">
-            <div class="dictionary-lookup">
-                <label for="card-dictionary-term">Mot ou expression à rechercher</label>
-                <input id="card-dictionary-term" type="search" placeholder="Choisis ou écris un mot…" autocomplete="off">
-                <label for="card-dictionary-source">Dictionnaire</label>
-                <select id="card-dictionary-source">
-                    <option value="nl-nl">Néerlandais → néerlandais (Woorden.org)</option>
-                    <option value="ja-en">Japonais → anglais (Jisho)</option>
-                    <option value="ja-nl">Japonais → néerlandais</option>
-                    <option value="web">Autre dictionnaire (recherche web)</option>
-                </select>
-                <button id="card-dictionary-button" type="button">📖 Rechercher ce terme</button>
+            <div class="card-tools-actions">
+                <button id="card-dictionary-toggle" type="button" aria-expanded="false" aria-controls="card-dictionary-panel">📖 Ouvrir le dictionnaire</button>
+                <button id="card-difficult-button" type="button" aria-pressed="false">⚑ Marquer comme difficile</button>
             </div>
-            <button id="card-difficult-button" type="button" aria-pressed="false">⚑ Marquer comme difficile</button>
+            <div id="card-dictionary-panel" class="dictionary-panel hidden">
+                <div class="dictionary-lookup">
+                    <label for="card-dictionary-term">Mot ou expression à rechercher</label>
+                    <input id="card-dictionary-term" type="search" placeholder="Choisis ou écris un mot…" autocomplete="off">
+                    <label for="card-dictionary-source">Dictionnaire</label>
+                    <select id="card-dictionary-source">
+                        <option value="nl-nl">Néerlandais → néerlandais (Woorden.org)</option>
+                        <option value="ja-en">Japonais → anglais (Jisho)</option>
+                        <option value="ja-nl">Japonais → néerlandais</option>
+                        <option value="web">Autre dictionnaire (recherche web)</option>
+                    </select>
+                    <button id="card-dictionary-button" type="button">Rechercher ce terme</button>
+                </div>
+            </div>
         </div>
 
     </div>
