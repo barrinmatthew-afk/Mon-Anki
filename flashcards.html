@@ -291,6 +291,13 @@ body{padding:clamp(14px,3vw,32px)!important;min-height:100vh}
         background: #f8fafc !important;
         border-color: #e2e8f0 !important;
     }
+    #card-extra-tools .context-example-box { padding:12px; border:1px solid #e1e8f3; border-radius:12px; background:#f8fafc; text-align:left; }
+    #card-extra-tools .context-example-box p { margin:5px 0; }
+    #card-extra-tools .context-label { color:#64748b; font-size:11px; font-weight:750; text-transform:uppercase; letter-spacing:.04em; }
+    #card-extra-tools #card-context-sentence { color:#182235; font-size:17px; font-weight:650; }
+    #card-extra-tools .context-translation { color:#52627a; font-size:14px; }
+    #card-extra-tools .context-source { color:#7a8599; font-size:11px; }
+    #card-extra-tools .context-example-box button { margin-top:8px; }
     #card-extra-tools .dictionary-panel {
         width: 100%;
         margin-top: 10px;
@@ -434,8 +441,18 @@ body{padding:clamp(14px,3vw,32px)!important;min-height:100vh}
 
         <div id="card-extra-tools" class="card-extra-tools hidden">
             <div class="card-tools-actions">
+                <button id="card-context-toggle" type="button" aria-expanded="false" aria-controls="card-context-panel">💬 Phrase de contexte</button>
                 <button id="card-dictionary-toggle" type="button" aria-expanded="false" aria-controls="card-dictionary-panel">📖 Ouvrir le dictionnaire</button>
                 <button id="card-difficult-button" type="button" aria-pressed="false">⚑ Marquer comme difficile</button>
+            </div>
+            <div id="card-context-panel" class="dictionary-panel hidden" aria-live="polite">
+                <div class="context-example-box">
+                    <p class="context-label">Exemple néerlandais</p>
+                    <p id="card-context-sentence">Ouvre le volet pour chercher un exemple.</p>
+                    <p id="card-context-translation" class="context-translation"></p>
+                    <p id="card-context-source" class="context-source">Exemples communautaires de Tatoeba.</p>
+                    <button id="card-context-new" type="button">Nouvelle phrase</button>
+                </div>
             </div>
             <div id="card-dictionary-panel" class="dictionary-panel hidden">
                 <div class="dictionary-lookup">
