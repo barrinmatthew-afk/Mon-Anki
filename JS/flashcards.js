@@ -461,6 +461,40 @@ Réponds uniquement en JSON avec les chaînes sentence, translation et explanati
         }
     }
 
+    async function checkWithLanguageTool(sentence) {
+        // Vérification indépendante facultative via LanguageTool. Si le service
+        // est inaccessible (réseau/CORS/limite), la génération reste utilisable.
+        const body = new URLSearchParams({
+            text: sentence,
+            language: "nl-NL",
+            enabledOnly: "false"
+        });
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 7000);
+        try {
+            const response = await fetch("https://api.languagetool.org/v2/check", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+                body,
+                signal: controller.signal
+            });
+            if (!response.ok) return { available: false, matches: [] };
+            const result = await response.json();
+            return {
+                available: true,
+                matches: (result.matches || []).slice(0, 5).map(match => ({
+                    message: String(match.message || ""),
+                    context: String(match.context?.text || ""),
+                    replacements: (match.replacements || []).slice(0, 3).map(item => String(item.value || ""))
+                }))
+            };
+        } catch {
+            return { available: false, matches: [] };
+        } finally {
+            clearTimeout(timeout);
+        }
+    }
+
     function readGeneratedFields(value) {
         return {
             sentence: String(value?.sentence || "").trim(),
@@ -493,11 +527,20 @@ Réponds uniquement en JSON avec les clés sentence, translation, explanation :
             generated = reviewed;
         }
 
+        // Troisième garde-fou : LanguageTool est un service externe distinct.
+        // On ne lui envoie que la phrase néerlandaise, pas la carte entière.
+        if (cardContextGenerateButton) {
+            cardContextGenerateButton.textContent = "🧪 Vérification linguistique…";
+        }
+        const languageCheck = await checkWithLanguageTool(generated.sentence);
+
         const example = {
             ...generated,
             id: "ollama:" + Date.now() + ":" + term.toLocaleLowerCase("nl-NL"),
             generated: true,
-            source: "Ollama local"
+            source: "Ollama local",
+            languageToolChecked: languageCheck.available,
+            languageToolMatches: languageCheck.matches
         };
         if (!Array.isArray(currentCard.contextExamples)) currentCard.contextExamples = [];
         currentCard.contextExamples.push(example);
@@ -505,8 +548,18 @@ Réponds uniquement en JSON avec les clés sentence, translation, explanation :
         await saveDecks(decks);
         renderContextExample(example);
         if (cardContextSource) {
-            cardContextSource.textContent = "Généré puis relu par Qwen 2.5 3B sur ton ordinateur via Ollama. Cette relecture par la même IA réduit certains risques, mais ne garantit pas l’absence d’erreurs." +
-                (example.explanation ? " " + example.explanation : "");
+            let checkNote = "";
+            if (!languageCheck.available) {
+                checkNote = " Vérification indépendante LanguageTool indisponible : seule la relecture par Qwen a été faite. La phrase reste à vérifier.";
+            } else if (languageCheck.matches.length) {
+                checkNote = " LanguageTool signale : " + languageCheck.matches.map(item =>
+                    item.message + (item.replacements.length ? " (suggestions : " + item.replacements.join(", ") + ")" : "")
+                ).join(" · ");
+            } else {
+                checkNote = " LanguageTool n’a détecté aucune erreur avec ses règles ; cela ne garantit pas que la phrase soit naturelle.";
+            }
+            cardContextSource.textContent = "Généré puis relu par Qwen 2.5 3B. Phrase envoyée à LanguageTool pour une vérification grammaticale indépendante si le service est accessible. Aucune vérification ne garantit l’absence d’erreurs." +
+                checkNote + (example.explanation ? " " + example.explanation : "");
         }
     } catch (error) {
         console.warn("Génération IA locale impossible :", error);
