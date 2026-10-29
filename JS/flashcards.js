@@ -403,7 +403,103 @@ cardContextToggle?.addEventListener("click", async () => {
     if (willOpen) await loadContextExample(false);
 });
 cardContextNewButton?.addEventListener("click", () => loadContextExample(true));
-cardContextGenerateButton?.addEventListener("click", showLocalContextExample);
+async function generateWithLocalAI() {
+    if (!currentCard || !cardContextSentence) return;
+
+    const term = getContextSearchTerm();
+    if (!term) {
+        renderContextExample(null, "Impossible d’identifier le mot sur cette carte.");
+        return;
+    }
+
+    const previousLabel = cardContextGenerateButton?.textContent;
+    if (cardContextGenerateButton) {
+        cardContextGenerateButton.disabled = true;
+        cardContextGenerateButton.textContent = "⏳ Génération par l’IA…";
+    }
+    if (cardContextNewButton) cardContextNewButton.disabled = true;
+    renderContextExample(null, "L’IA locale prépare une phrase…");
+
+    const prompt = `Tu es un professeur de néerlandais pour un francophone de niveau A2-B1.
+Crée UNE phrase naturelle et grammaticalement correcte en néerlandais des Pays-Bas qui emploie le mot ou l’expression exact(e) suivant(e) : "${term}".
+Le mot cible doit être utilisé avec un sens naturel. La phrase doit être courte, utile dans la vie quotidienne et adaptée au niveau A2-B1.
+N'invente pas de faits sur l'utilisateur. Ne donne pas de rōmaji.
+Réponds uniquement en JSON valide avec ces clés :
+{"sentence":"phrase en néerlandais","translation":"traduction naturelle en français","explanation":"courte explication en français de l'emploi du mot ou de la grammaire"}
+Si tu ne peux pas employer le mot naturellement, fais de ton mieux mais ne prétends pas avoir vérifié la phrase dans un dictionnaire.`;
+
+    try {
+        const response = await fetch("http://localhost:11434/api/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                model: "qwen2.5:3b",
+                prompt,
+                format: "json",
+                stream: false,
+                options: { temperature: 0.4, num_predict: 220 }
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error("Ollama a répondu avec le code HTTP " + response.status + ".");
+        }
+
+        const payload = await response.json();
+        const raw = String(payload.response || "").trim();
+        let generated;
+        try {
+            generated = JSON.parse(raw);
+        } catch {
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) throw new Error("La réponse de l’IA n’était pas un JSON exploitable.");
+            generated = JSON.parse(jsonMatch[0]);
+        }
+
+        const sentence = String(generated.sentence || "").trim();
+        const translation = String(generated.translation || "").trim();
+        const explanation = String(generated.explanation || "").trim();
+        if (!sentence || !translation) {
+            throw new Error("L’IA n’a pas renvoyé de phrase et de traduction complètes.");
+        }
+
+        const example = {
+            sentence,
+            translation,
+            explanation,
+            id: "ollama:" + Date.now() + ":" + term.toLocaleLowerCase("nl-NL"),
+            generated: true,
+            source: "Ollama local"
+        };
+        if (!Array.isArray(currentCard.contextExamples)) currentCard.contextExamples = [];
+        currentCard.contextExamples.push(example);
+        currentCard.contextLastId = example.id;
+        saveDecks(decks);
+        renderContextExample(example);
+        if (cardContextSource) {
+            cardContextSource.textContent = "Généré par Qwen 2.5 3B sur ton ordinateur via Ollama. Phrase à vérifier : une IA peut faire des erreurs." +
+                (explanation ? " " + explanation : "");
+        }
+    } catch (error) {
+        console.warn("Génération IA locale impossible :", error);
+        let message = "Impossible de joindre l’IA locale. Vérifie qu’Ollama est installé et lancé, puis que le modèle qwen2.5:3b est téléchargé.";
+        if (error instanceof TypeError) {
+            message += " Si Ollama tourne déjà, autorise l’origine https://barrinmatthew-afk.github.io avec la variable OLLAMA_ORIGINS, puis redémarre Ollama.";
+        } else if (error.message) {
+            message += " Détail : " + error.message;
+        }
+        renderContextExample(null, message);
+        if (cardContextSource) cardContextSource.textContent = "Connexion à Ollama local · aucune phrase n’a été inventée en secours.";
+    } finally {
+        if (cardContextGenerateButton) {
+            cardContextGenerateButton.disabled = false;
+            cardContextGenerateButton.textContent = previousLabel || "🤖 Générer avec l’IA locale";
+        }
+        if (cardContextNewButton) cardContextNewButton.disabled = false;
+    }
+}
+
+cardContextGenerateButton?.addEventListener("click", generateWithLocalAI);
 
 cardDictionaryButton?.addEventListener("click", openDictionaryForCurrentCard);
 cardDifficultButton?.addEventListener("click", async () => {
