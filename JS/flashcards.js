@@ -116,6 +116,8 @@ const referenceDrawing =
 
 const cardExtraTools = document.getElementById("card-extra-tools");
 const cardDictionaryButton = document.getElementById("card-dictionary-button");
+const cardDictionaryToggle = document.getElementById("card-dictionary-toggle");
+const cardDictionaryPanel = document.getElementById("card-dictionary-panel");
 const cardDictionaryTerm = document.getElementById("card-dictionary-term");
 const cardDictionarySource = document.getElementById("card-dictionary-source");
 const cardDifficultButton = document.getElementById("card-difficult-button");
@@ -155,6 +157,15 @@ function refreshDifficultButton() {
     cardDifficultButton.classList.toggle("is-difficult", difficult);
     cardDifficultButton.setAttribute("aria-pressed", String(difficult));
 }
+
+cardDictionaryToggle?.addEventListener("click", () => {
+    if (!cardDictionaryPanel || !cardDictionaryToggle) return;
+    const willOpen = cardDictionaryPanel.classList.contains("hidden");
+    cardDictionaryPanel.classList.toggle("hidden", !willOpen);
+    cardDictionaryToggle.setAttribute("aria-expanded", String(willOpen));
+    cardDictionaryToggle.textContent = willOpen ? "📖 Fermer le dictionnaire" : "📖 Ouvrir le dictionnaire";
+    if (willOpen) cardDictionaryTerm?.focus();
+});
 
 cardDictionaryButton?.addEventListener("click", openDictionaryForCurrentCard);
 cardDifficultButton?.addEventListener("click", async () => {
@@ -629,6 +640,11 @@ function displayCard() {
     );
 
     cardExtraTools?.classList.add("hidden");
+    cardDictionaryPanel?.classList.add("hidden");
+    if (cardDictionaryToggle) {
+        cardDictionaryToggle.textContent = "📖 Ouvrir le dictionnaire";
+        cardDictionaryToggle.setAttribute("aria-expanded", "false");
+    }
     if (cardDictionaryTerm) cardDictionaryTerm.value = "";
     refreshDifficultButton();
 
