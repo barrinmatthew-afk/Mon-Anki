@@ -268,9 +268,23 @@ const localDutchContextPatterns = {
     "daarom": [
         { sentence: "Ik ben moe, daarom ga ik vroeg naar bed.", translation: "Je suis fatigué, c’est pourquoi je me couche tôt." },
         { sentence: "Het regent; daarom nemen we de bus.", translation: "Il pleut ; c’est pourquoi nous prenons le bus." }
+    ],
+    "indrukwekkend": [
+        { sentence: "Het uitzicht vanaf de berg is indrukwekkend.", translation: "La vue depuis la montagne est impressionnante." },
+        { sentence: "Ze gaf een indrukwekkende presentatie voor de hele klas.", translation: "Elle a fait une présentation impressionnante devant toute la classe." },
+        { sentence: "Ik vond het indrukwekkend hoe rustig hij bleef.", translation: "J’ai trouvé impressionnant qu’il soit resté aussi calme." }
+    ],
+    "proberen": [
+        { sentence: "Ik probeer elke dag een beetje Nederlands te spreken.", translation: "J’essaie de parler un peu néerlandais chaque jour." },
+        { sentence: "Je kunt het opnieuw proberen.", translation: "Tu peux essayer à nouveau." },
+        { sentence: "Ik probeer de deur open te maken.", translation: "J’essaie d’ouvrir la porte." }
+    ],
+    "thuis": [
+        { sentence: "Ik ben om zes uur thuis.", translation: "Je suis à la maison à six heures." },
+        { sentence: "Voel je je hier thuis?", translation: "Est-ce que tu te sens chez toi ici ?" },
+        { sentence: "Vanavond blijf ik thuis om te studeren.", translation: "Ce soir, je reste à la maison pour étudier." }
     ]
 };
-
 function generateLocalContextExample() {
     const term = getContextSearchTerm();
     if (!term) return null;
