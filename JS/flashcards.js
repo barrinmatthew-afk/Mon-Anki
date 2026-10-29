@@ -415,58 +415,86 @@ async function generateWithLocalAI() {
     const previousLabel = cardContextGenerateButton?.textContent;
     if (cardContextGenerateButton) {
         cardContextGenerateButton.disabled = true;
-        cardContextGenerateButton.textContent = "⏳ Génération par l’IA…";
+        cardContextGenerateButton.textContent = "⏳ Génération et relecture…";
     }
     if (cardContextNewButton) cardContextNewButton.disabled = true;
-    renderContextExample(null, "L’IA locale prépare une phrase…");
+    renderContextExample(null, "L’IA locale rédige puis relit sa phrase…");
 
-    const prompt = `Tu es un professeur de néerlandais pour un francophone de niveau A2-B1.
-Crée UNE phrase naturelle et grammaticalement correcte en néerlandais des Pays-Bas qui emploie le mot ou l’expression exact(e) suivant(e) : "${term}".
-Le mot cible doit être utilisé avec un sens naturel. La phrase doit être courte, utile dans la vie quotidienne et adaptée au niveau A2-B1.
-N'invente pas de faits sur l'utilisateur. Ne donne pas de rōmaji.
-Réponds uniquement en JSON valide avec ces clés :
-{"sentence":"phrase en néerlandais","translation":"traduction naturelle en français","explanation":"courte explication en français de l'emploi du mot ou de la grammaire"}
-Si tu ne peux pas employer le mot naturellement, fais de ton mieux mais ne prétends pas avoir vérifié la phrase dans un dictionnaire.`;
+    // La consigne privilégie le néerlandais naturel des Pays-Bas et interdit
+    // les explications qui inventent un sens ou une règle non justifiés.
+    const prompt = `Tu es un professeur prudent de néerlandais des Pays-Bas (usage courant aux Pays-Bas), pour un francophone A2-B1.
+Crée UNE phrase courte, idiomatique et grammaticalement correcte contenant exactement ce mot ou cette expression cible : ${JSON.stringify(term)}.
+Contraintes :
+- Utilise le mot cible avec un sens réellement naturel dans ce contexte ; ne le force pas dans la phrase.
+- Vérifie mentalement l’orthographe, les conjugaisons, les articles, les prépositions et l’ordre des mots.
+- Dans une proposition subordonnée introduite notamment par zodra, omdat, hoewel, terwijl, voordat ou nadat, place le verbe conjugué à la fin de cette proposition.
+- N’invente pas de mots néerlandais. Si plusieurs formulations sont possibles, choisis la plus courante et naturelle.
+- Donne une traduction française fidèle à la phrase, sans ajouter d’informations absentes.
+- L’explication doit expliquer seulement un point réellement présent dans la phrase ; précise les nuances d’usage sans prétendre qu’un synonyme est toujours incorrect.
+- Si tu n’es pas sûr du sens du mot cible, signale cette incertitude dans explanation plutôt que d’inventer.
+Réponds uniquement en JSON avec les chaînes sentence, translation et explanation :
+{"sentence":"...","translation":"...","explanation":"..."} `;
 
-    try {
+    async function askLocalModel(instruction, numPredict = 240) {
         const response = await fetch("http://localhost:11434/api/generate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 model: "qwen2.5:3b",
-                prompt,
+                prompt: instruction,
                 format: "json",
                 stream: false,
-                options: { temperature: 0.4, num_predict: 220 }
+                options: { temperature: 0.2, num_predict: numPredict }
             })
         });
-
         if (!response.ok) {
             throw new Error("Ollama a répondu avec le code HTTP " + response.status + ".");
         }
-
         const payload = await response.json();
         const raw = String(payload.response || "").trim();
-        let generated;
         try {
-            generated = JSON.parse(raw);
+            return JSON.parse(raw);
         } catch {
             const jsonMatch = raw.match(/\{[\s\S]*\}/);
             if (!jsonMatch) throw new Error("La réponse de l’IA n’était pas un JSON exploitable.");
-            generated = JSON.parse(jsonMatch[0]);
+            return JSON.parse(jsonMatch[0]);
         }
+    }
 
-        const sentence = String(generated.sentence || "").trim();
-        const translation = String(generated.translation || "").trim();
-        const explanation = String(generated.explanation || "").trim();
-        if (!sentence || !translation) {
+    function readGeneratedFields(value) {
+        return {
+            sentence: String(value?.sentence || "").trim(),
+            translation: String(value?.translation || "").trim(),
+            explanation: String(value?.explanation || "").trim()
+        };
+    }
+
+    try {
+        let generated = readGeneratedFields(await askLocalModel(prompt));
+
+        if (!generated.sentence || !generated.translation) {
             throw new Error("L’IA n’a pas renvoyé de phrase et de traduction complètes.");
         }
 
+        // Deuxième passage : le même modèle cherche des erreurs et propose
+        // une version corrigée. Ce n’est pas un correcteur indépendant.
+        if (cardContextGenerateButton) {
+            cardContextGenerateButton.textContent = "🔎 Relecture de la phrase…";
+        }
+        const reviewPrompt = `Tu es relecteur de néerlandais standard des Pays-Bas.
+Relis la phrase proposée ci-dessous. Cherche les erreurs réelles d’orthographe, de grammaire, d’ordre des mots, de naturel et de traduction.
+Mot cible qui doit rester employé naturellement : ${JSON.stringify(term)}
+Proposition : ${JSON.stringify(generated)}
+Corrige la phrase et sa traduction si nécessaire. Ne change pas une formulation correcte uniquement par préférence stylistique. N’invente aucun mot. L’explication doit correspondre à la version finale et rester prudente.
+Réponds uniquement en JSON avec les clés sentence, translation, explanation :
+{"sentence":"phrase finale en néerlandais","translation":"traduction fidèle en français","explanation":"explication concise et exacte en français"} `;
+        const reviewed = readGeneratedFields(await askLocalModel(reviewPrompt, 260));
+        if (reviewed.sentence && reviewed.translation) {
+            generated = reviewed;
+        }
+
         const example = {
-            sentence,
-            translation,
-            explanation,
+            ...generated,
             id: "ollama:" + Date.now() + ":" + term.toLocaleLowerCase("nl-NL"),
             generated: true,
             source: "Ollama local"
@@ -474,22 +502,22 @@ Si tu ne peux pas employer le mot naturellement, fais de ton mieux mais ne prét
         if (!Array.isArray(currentCard.contextExamples)) currentCard.contextExamples = [];
         currentCard.contextExamples.push(example);
         currentCard.contextLastId = example.id;
-        saveDecks(decks);
+        await saveDecks(decks);
         renderContextExample(example);
         if (cardContextSource) {
-            cardContextSource.textContent = "Généré par Qwen 2.5 3B sur ton ordinateur via Ollama. Phrase à vérifier : une IA peut faire des erreurs." +
-                (explanation ? " " + explanation : "");
+            cardContextSource.textContent = "Généré puis relu par Qwen 2.5 3B sur ton ordinateur via Ollama. Cette relecture par la même IA réduit certains risques, mais ne garantit pas l’absence d’erreurs." +
+                (example.explanation ? " " + example.explanation : "");
         }
     } catch (error) {
         console.warn("Génération IA locale impossible :", error);
-        let message = "Impossible de joindre l’IA locale. Vérifie qu’Ollama est installé et lancé, puis que le modèle qwen2.5:3b est téléchargé.";
+        let message = "Impossible de générer ou relire la phrase. Vérifie qu’Ollama est lancé et que qwen2.5:3b est installé.";
         if (error instanceof TypeError) {
-            message += " Si Ollama tourne déjà, autorise l’origine https://barrinmatthew-afk.github.io avec la variable OLLAMA_ORIGINS, puis redémarre Ollama.";
+            message += " Si Ollama tourne, vérifie OLLAMA_ORIGINS=https://barrinmatthew-afk.github.io puis redémarre Ollama.";
         } else if (error.message) {
             message += " Détail : " + error.message;
         }
         renderContextExample(null, message);
-        if (cardContextSource) cardContextSource.textContent = "Connexion à Ollama local · aucune phrase n’a été inventée en secours.";
+        if (cardContextSource) cardContextSource.textContent = "Connexion à Ollama local · aucune phrase de secours n’a été inventée.";
     } finally {
         if (cardContextGenerateButton) {
             cardContextGenerateButton.disabled = false;
@@ -498,7 +526,6 @@ Si tu ne peux pas employer le mot naturellement, fais de ton mieux mais ne prét
         if (cardContextNewButton) cardContextNewButton.disabled = false;
     }
 }
-
 cardContextGenerateButton?.addEventListener("click", generateWithLocalAI);
 
 cardDictionaryButton?.addEventListener("click", openDictionaryForCurrentCard);
