@@ -295,6 +295,8 @@ body{padding:clamp(14px,3vw,32px)!important;min-height:100vh}
     #card-extra-tools .context-example-box p { margin:5px 0; }
     #card-extra-tools .context-label { color:#64748b; font-size:11px; font-weight:750; text-transform:uppercase; letter-spacing:.04em; }
     #card-extra-tools #card-context-sentence { color:#182235; font-size:17px; font-weight:650; }
+    #card-extra-tools .context-example-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+    #card-extra-tools .context-example-actions button { margin-top:0; }
     #card-extra-tools .context-translation { color:#52627a; font-size:14px; }
     #card-extra-tools .context-source { color:#7a8599; font-size:11px; }
     #card-extra-tools .context-example-box button { margin-top:8px; }
@@ -451,7 +453,7 @@ body{padding:clamp(14px,3vw,32px)!important;min-height:100vh}
                     <p id="card-context-sentence">Ouvre le volet pour chercher un exemple.</p>
                     <p id="card-context-translation" class="context-translation"></p>
                     <p id="card-context-source" class="context-source">Exemples communautaires de Tatoeba.</p>
-                    <button id="card-context-new" type="button">Nouvelle phrase</button>
+                    <div class="context-example-actions"><button id="card-context-new" type="button">Nouvelle phrase</button><button id="card-context-generate" type="button">⚙️ Générer une phrase maison</button></div>
                 </div>
             </div>
             <div id="card-dictionary-panel" class="dictionary-panel hidden">
