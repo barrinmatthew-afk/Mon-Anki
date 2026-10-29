@@ -117,6 +117,13 @@ const referenceDrawing =
 const cardExtraTools = document.getElementById("card-extra-tools");
 const cardDictionaryButton = document.getElementById("card-dictionary-button");
 const cardDictionaryToggle = document.getElementById("card-dictionary-toggle");
+const cardContextToggle = document.getElementById("card-context-toggle");
+const cardContextPanel = document.getElementById("card-context-panel");
+const cardContextSentence = document.getElementById("card-context-sentence");
+const cardContextTranslation = document.getElementById("card-context-translation");
+const cardContextSource = document.getElementById("card-context-source");
+const cardContextNewButton = document.getElementById("card-context-new");
+
 const cardDictionaryPanel = document.getElementById("card-dictionary-panel");
 const cardDictionaryTerm = document.getElementById("card-dictionary-term");
 const cardDictionarySource = document.getElementById("card-dictionary-source");
@@ -166,6 +173,99 @@ cardDictionaryToggle?.addEventListener("click", () => {
     cardDictionaryToggle.textContent = willOpen ? "📖 Fermer le dictionnaire" : "📖 Ouvrir le dictionnaire";
     if (willOpen) cardDictionaryTerm?.focus();
 });
+
+
+// Exemples authentiques récupérés gratuitement sur Tatoeba (sans clé API).
+function getContextSearchTerm() {
+    if (!currentCard) return "";
+    return String(currentCard.word || getQuestionAndAnswer(currentCard).question || "").trim();
+}
+
+function extractTatoebaSentences(payload) {
+    const candidates = Array.isArray(payload) ? payload :
+        (payload?.data || payload?.results || payload?.sentences || payload?.items || []);
+    if (!Array.isArray(candidates)) return [];
+    return candidates.map(item => {
+        const sentence = item?.text || item?.sentence?.text || (typeof item?.sentence === "string" ? item.sentence : "");
+        let translation = "";
+        const groups = item?.translations || item?.translation || [];
+        const flat = Array.isArray(groups) ? groups.flat(Infinity) : [groups];
+        for (const entry of flat) {
+            if (typeof entry === "string") {
+                if (!translation) translation = entry;
+            } else if (entry && typeof entry === "object") {
+                const lang = entry.lang || entry.language || entry.code;
+                const text = entry.text || entry.sentence?.text || entry.translation;
+                if (text && (!lang || ["fra", "fre", "fr"].includes(lang))) {
+                    translation = text;
+                    if (lang) break;
+                }
+            }
+        }
+        return { id: item?.id || item?.sentence_id || null, sentence: String(sentence || "").trim(), translation: String(translation || "").trim() };
+    }).filter(item => item.sentence);
+}
+
+function renderContextExample(example, message = "") {
+    if (cardContextSentence) cardContextSentence.textContent = example?.sentence || message || "Aucun exemple disponible.";
+    if (cardContextTranslation) cardContextTranslation.textContent = example?.translation || (example?.sentence ? "Traduction française non disponible." : "");
+    if (cardContextSource) cardContextSource.textContent = example?.id
+        ? "Source : Tatoeba · les traductions communautaires peuvent contenir des erreurs."
+        : "Source : recherche Tatoeba.";
+}
+
+async function loadContextExample(forceNew = false) {
+    if (!currentCard || !cardContextSentence) return;
+    const term = getContextSearchTerm();
+    if (!term) {
+        renderContextExample(null, "Impossible d'identifier le mot sur cette carte.");
+        return;
+    }
+    if (!Array.isArray(currentCard.contextExamples)) currentCard.contextExamples = [];
+    const seen = currentCard.contextExamples;
+    if (!forceNew && seen.length) {
+        const cached = seen.find(item => String(item.id || item.sentence) === String(currentCard.contextLastId)) || seen[0];
+        renderContextExample(cached);
+        return;
+    }
+    if (cardContextNewButton) cardContextNewButton.disabled = true;
+    renderContextExample(null, "Recherche d'une phrase…");
+    try {
+        const params = new URLSearchParams({ q: term, lang: "nld", "trans:lang": "fra", showtrans: "all", limit: "20" });
+        const response = await fetch("https://api.tatoeba.org/v1/sentences?" + params.toString(), {
+            headers: { Accept: "application/json" }
+        });
+        if (!response.ok) throw new Error("Tatoeba HTTP " + response.status);
+        const payload = await response.json();
+        const all = extractTatoebaSentences(payload);
+        const fresh = all.filter(item => !seen.some(old => old.id && item.id && old.id === item.id));
+        const choices = fresh.length ? fresh : all;
+        if (!choices.length) {
+            renderContextExample(null, "Aucune phrase trouvée pour ce mot. Essaie un autre mot ou réessaie plus tard.");
+            return;
+        }
+        const example = choices[Math.floor(Math.random() * choices.length)];
+        if (!seen.some(old => old.id && example.id && old.id === example.id)) seen.push(example);
+        currentCard.contextLastId = example.id || example.sentence;
+        saveDecks(decks);
+        renderContextExample(example);
+    } catch (error) {
+        console.warn("Tatoeba : recherche de phrase impossible", error);
+        renderContextExample(null, "La recherche n'a pas abouti. Vérifie la connexion et réessaie.");
+    } finally {
+        if (cardContextNewButton) cardContextNewButton.disabled = false;
+    }
+}
+
+cardContextToggle?.addEventListener("click", async () => {
+    if (!cardContextPanel || !cardContextToggle) return;
+    const willOpen = cardContextPanel.classList.contains("hidden");
+    cardContextPanel.classList.toggle("hidden", !willOpen);
+    cardContextToggle.setAttribute("aria-expanded", String(willOpen));
+    cardContextToggle.textContent = willOpen ? "💬 Masquer la phrase" : "💬 Phrase de contexte";
+    if (willOpen) await loadContextExample(false);
+});
+cardContextNewButton?.addEventListener("click", () => loadContextExample(true));
 
 cardDictionaryButton?.addEventListener("click", openDictionaryForCurrentCard);
 cardDifficultButton?.addEventListener("click", async () => {
@@ -641,6 +741,11 @@ function displayCard() {
 
     cardExtraTools?.classList.add("hidden");
     cardDictionaryPanel?.classList.add("hidden");
+    cardContextPanel?.classList.add("hidden");
+    if (cardContextToggle) {
+        cardContextToggle.textContent = "💬 Phrase de contexte";
+        cardContextToggle.setAttribute("aria-expanded", "false");
+    }
     if (cardDictionaryToggle) {
         cardDictionaryToggle.textContent = "📖 Ouvrir le dictionnaire";
         cardDictionaryToggle.setAttribute("aria-expanded", "false");
