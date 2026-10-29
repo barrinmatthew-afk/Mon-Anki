@@ -182,27 +182,49 @@ function getContextSearchTerm() {
 }
 
 function extractTatoebaSentences(payload) {
-    const candidates = Array.isArray(payload) ? payload :
+    // L'API Tatoeba renvoie normalement { data: [...] }, mais on accepte
+    // plusieurs formes de réponse pour éviter de perdre les exemples.
+    let candidates = Array.isArray(payload) ? payload :
         (payload?.data || payload?.results || payload?.sentences || payload?.items || []);
+    if (!Array.isArray(candidates) && candidates && typeof candidates === "object") {
+        candidates = candidates.sentences || candidates.results || [];
+    }
     if (!Array.isArray(candidates)) return [];
+
     return candidates.map(item => {
-        const sentence = item?.text || item?.sentence?.text || (typeof item?.sentence === "string" ? item.sentence : "");
+        const sentence = item?.text || item?.sentence?.text ||
+            (typeof item?.sentence === "string" ? item.sentence : "");
         let translation = "";
         const groups = item?.translations || item?.translation || [];
         const flat = Array.isArray(groups) ? groups.flat(Infinity) : [groups];
+
         for (const entry of flat) {
             if (typeof entry === "string") {
                 if (!translation) translation = entry;
-            } else if (entry && typeof entry === "object") {
-                const lang = entry.lang || entry.language || entry.code;
-                const text = entry.text || entry.sentence?.text || entry.translation;
+                continue;
+            }
+            if (!entry || typeof entry !== "object") continue;
+
+            // Selon la réponse, la traduction peut être un objet phrase,
+            // un groupe de traductions, ou contenir un tableau "sentences".
+            const possible = [entry, entry.sentence, ...(Array.isArray(entry.sentences) ? entry.sentences : [])];
+            for (const candidate of possible) {
+                if (!candidate || typeof candidate !== "object") continue;
+                const lang = candidate.lang || candidate.language || candidate.code;
+                const text = candidate.text || candidate.translation;
                 if (text && (!lang || ["fra", "fre", "fr"].includes(lang))) {
                     translation = text;
                     if (lang) break;
                 }
             }
+            if (translation) break;
         }
-        return { id: item?.id || item?.sentence_id || null, sentence: String(sentence || "").trim(), translation: String(translation || "").trim() };
+
+        return {
+            id: item?.id || item?.sentence_id || item?.sentence?.id || null,
+            sentence: String(sentence || "").trim(),
+            translation: String(translation || "").trim()
+        };
     }).filter(item => item.sentence);
 }
 
@@ -231,13 +253,31 @@ async function loadContextExample(forceNew = false) {
     if (cardContextNewButton) cardContextNewButton.disabled = true;
     renderContextExample(null, "Recherche d'une phrase…");
     try {
-        const params = new URLSearchParams({ q: term, lang: "nld", "trans:lang": "fra", showtrans: "all", limit: "20" });
-        const response = await fetch("https://api.tatoeba.org/v1/sentences?" + params.toString(), {
-            headers: { Accept: "application/json" }
-        });
-        if (!response.ok) throw new Error("Tatoeba HTTP " + response.status);
-        const payload = await response.json();
-        const all = extractTatoebaSentences(payload);
+        // On tente d'abord les phrases néerlandaises avec traduction française,
+        // puis on élargit la recherche si Tatoeba ne trouve aucune correspondance.
+        const searches = [
+            { q: term, lang: "nld", "trans:lang": "fra", showtrans: "all", limit: "20" },
+            { q: term, lang: "nld", showtrans: "all", limit: "20" }
+        ];
+        let all = [];
+        let lastError = null;
+
+        for (const search of searches) {
+            const params = new URLSearchParams(search);
+            try {
+                const response = await fetch("https://api.tatoeba.org/v1/sentences?" + params.toString(), {
+                    headers: { Accept: "application/json" }
+                });
+                if (!response.ok) throw new Error("Tatoeba HTTP " + response.status);
+                const payload = await response.json();
+                all = extractTatoebaSentences(payload);
+                if (all.length) break;
+            } catch (error) {
+                lastError = error;
+            }
+        }
+
+        if (!all.length && lastError) throw lastError;
         const fresh = all.filter(item => !seen.some(old => old.id && item.id && old.id === item.id));
         const choices = fresh.length ? fresh : all;
         if (!choices.length) {
