@@ -626,31 +626,26 @@ const cards =
  // ==============================
 
 function saveDecks(decksToSave) {
-    // 1. Enregistrer immédiatement sur cet appareil.
+    // 1. Enregistrer immédiatement sur cet appareil : aucune attente réseau.
     try {
-        localStorage.setItem(
-            "decks",
-            JSON.stringify(decksToSave)
-        );
+        localStorage.setItem("decks", JSON.stringify(decksToSave));
     } catch (error) {
-        console.error(
-            "Erreur de sauvegarde locale :",
-            error
-        );
-
+        console.error("Erreur de sauvegarde locale :", error);
         return false;
     }
 
-    // 2. Déclencher la sauvegarde cloud sans l'attendre.
-    // L'affichage des cartes ne dépend donc pas du réseau.
+    // 2. Mettre la dernière version en attente pour Firebase.
+    // L'envoi se fait en arrière-plan et ne ralentit jamais les révisions.
     if (typeof window.saveDecksToCloud === "function") {
         try {
-            window.saveDecksToCloud(decksToSave);
+            const cloudSave = window.saveDecksToCloud(decksToSave);
+            if (cloudSave && typeof cloudSave.catch === "function") {
+                cloudSave.catch(error => {
+                    console.warn("Sauvegarde cloud différée :", error);
+                });
+            }
         } catch (error) {
-            console.warn(
-                "La sauvegarde cloud sera à réessayer :",
-                error
-            );
+            console.warn("La sauvegarde cloud sera réessayée :", error);
         }
     }
 
@@ -2275,14 +2270,13 @@ function skipCard() {
 
 async function finishSession() {
 
-    /*
-     * Dernière sauvegarde de sécurité.
-     */
+    // Sauvegarde locale immédiate, puis tentative d'envoi cloud avec confirmation.
+    saveDecks(decks);
 
-    await saveDecks(
-        decks
-    );
-
+    let cloudSaved = false;
+    if (typeof window.flushDecksToCloud === "function") {
+        cloudSaved = await window.flushDecksToCloud();
+    }
 
     cardElement.classList.add(
         "hidden"
@@ -2308,8 +2302,9 @@ async function finishSession() {
     );
 
 
-    completionText.textContent =
-        "Tu as terminé toutes les cartes prévues pour cette session.";
+    completionText.textContent = cloudSaved
+        ? "Session terminée. Ta progression est enregistrée sur cet appareil et synchronisée avec le cloud."
+        : "Session terminée. Ta progression est enregistrée sur cet appareil. La synchronisation cloud reste en attente et reprendra dès que la connexion sera disponible.";
 
 }
 
