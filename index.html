@@ -1020,14 +1020,16 @@
 @keyframes sync-card-right{0%,100%{transform:translate(42px,5px) rotate(13deg);opacity:.65}50%{transform:translate(68px,-4px) rotate(22deg);opacity:1}}
 @keyframes sync-card-back{0%,100%{transform:translate(0,7px) scale(.92);opacity:.4}50%{transform:translate(0,16px) scale(.92);opacity:.7}}
 .sync-progress-track{height:7px;max-width:310px;margin:12px auto 0;border-radius:99px;background:#dce5f7;overflow:hidden}
-.sync-progress-bar{width:38%;height:100%;border-radius:99px;background:#3156b8;animation:sync-progress 1.5s ease-in-out infinite}
+.sync-progress-bar{width:0%;height:100%;border-radius:99px;background:#3156b8;transition:width .2s ease}
+.sync-progress-count{margin:9px 0 0;color:#3156b8;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+.sync-progress-bar.is-indeterminate{width:38%;animation:sync-progress 1.5s ease-in-out infinite}
 @keyframes sync-progress{0%{transform:translateX(-110%)}100%{transform:translateX(370%)}}
 #sync-animation-title{margin:0;color:#263b68;font-weight:750}
 #sync-animation-note{margin:4px 0 0;color:#64748b;font-size:13px}
 #sync-section.is-syncing #manual-sync-button{opacity:.75}
 #manual-sync-button .sync-button-spinner{display:inline-block;width:13px;height:13px;margin-right:7px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;vertical-align:-2px;animation:sync-spin .8s linear infinite}
 @keyframes sync-spin{to{transform:rotate(360deg)}}
-@media(prefers-reduced-motion:reduce){.sync-card,.sync-progress-bar,#manual-sync-button .sync-button-spinner{animation:none!important}.sync-progress-bar{width:100%;transform:none}}
+@media(prefers-reduced-motion:reduce){.sync-card,.sync-progress-bar,#manual-sync-button .sync-button-spinner{animation:none!important}.sync-progress-bar.is-indeterminate{width:100%;transform:none}}
 </style>
 
 </head>
@@ -1206,7 +1208,8 @@
         </div>
         <p id="sync-animation-title">On rassemble tes cartes…</p>
         <p id="sync-animation-note">La première synchronisation peut prendre un peu de temps.</p>
-        <div class="sync-progress-track" aria-hidden="true"><div class="sync-progress-bar"></div></div>
+        <p id="sync-progress-count" class="sync-progress-count">Préparation du transfert…</p>
+        <div class="sync-progress-track" role="progressbar" aria-label="Progression de la synchronisation" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="sync-progress-fill" class="sync-progress-bar"></div></div>
     </div>
 
 </div>
@@ -1366,6 +1369,32 @@
             const syncSection = document.getElementById("sync-section");
             const syncAnimationTitle = document.getElementById("sync-animation-title");
             const syncAnimationNote = document.getElementById("sync-animation-note");
+            const syncProgressCount = document.getElementById("sync-progress-count");
+            const syncProgressFill = document.getElementById("sync-progress-fill");
+            const syncProgressTrack = syncProgressFill?.parentElement;
+
+            function updateSyncProgress(progress) {
+                if (!progress) return;
+                const total = Math.max(0, Number(progress.total) || 0);
+                const completed = Math.max(0, Number(progress.completed) || 0);
+                const percent = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0;
+                const phaseLabel = progress.phase === "download" ? "Téléchargement" : "Envoi vers le cloud";
+
+                if (syncAnimationTitle) syncAnimationTitle.textContent = phaseLabel + " des cartes…";
+                if (syncAnimationNote) syncAnimationNote.textContent = progress.deckName
+                    ? "Deck en cours : " + progress.deckName
+                    : "Garde cette page ouverte pendant le transfert.";
+                if (syncProgressCount) {
+                    syncProgressCount.textContent = total > 0
+                        ? completed.toLocaleString("fr-BE") + " / " + total.toLocaleString("fr-BE") + " cartes (" + percent + " %)"
+                        : "Préparation du transfert…";
+                }
+                if (syncProgressFill) {
+                    syncProgressFill.classList.remove("is-indeterminate");
+                    syncProgressFill.style.width = percent + "%";
+                }
+                if (syncProgressTrack && total > 0) syncProgressTrack.setAttribute("aria-valuenow", String(percent));
+            }
 
             function showSyncAnimation(title = "On rassemble tes cartes…", note = "La première synchronisation peut prendre un peu de temps.") {
                 syncSection?.classList.add("is-syncing");
@@ -1389,7 +1418,7 @@
                     if (currentUser) {
                         showSyncAnimation("On transfère tes cartes…", "Garde cette page ouverte jusqu’à la fin du transfert.");
                         if (syncStatus) syncStatus.textContent = "Téléchargement et fusion des decks…";
-                        await syncLocalDecksWithCloud({ waitForCompletion: true });
+                        await syncLocalDecksWithCloud({ waitForCompletion: true, onProgress: updateSyncProgress });
                         if (syncStatus) syncStatus.textContent = "✓ Synchronisation terminée et enregistrée dans le cloud.";
                     } else if (syncStatus) {
                         syncStatus.textContent = "Mode local : actualisation sur cet appareil.";
