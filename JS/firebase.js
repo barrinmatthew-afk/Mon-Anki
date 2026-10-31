@@ -210,9 +210,12 @@ let pendingSaveResolvers = [];
 
 // Restaurer la dernière sauvegarde en attente après un rechargement ou une fermeture.
 try {
-    const savedPending = localStorage.getItem(PENDING_CLOUD_KEY);
-    pendingDecks = savedPending ? JSON.parse(savedPending) : null;
-    if (!Array.isArray(pendingDecks)) pendingDecks = null;
+    // Le marqueur indique qu'un envoi reste à faire. Les données elles-mêmes
+    // sont déjà dans "decks" : on évite d'en stocker une seconde copie volumineuse.
+    if (localStorage.getItem(PENDING_CLOUD_KEY)) {
+        const localDecks = JSON.parse(localStorage.getItem("decks") || "[]");
+        pendingDecks = Array.isArray(localDecks) ? localDecks : null;
+    }
 } catch (error) {
     console.warn("File d'attente cloud illisible :", error);
     pendingDecks = null;
@@ -221,12 +224,12 @@ try {
 function persistPendingDecks() {
     try {
         if (Array.isArray(pendingDecks)) {
-            localStorage.setItem(PENDING_CLOUD_KEY, JSON.stringify(pendingDecks));
+            localStorage.setItem(PENDING_CLOUD_KEY, "1");
         } else {
             localStorage.removeItem(PENDING_CLOUD_KEY);
         }
     } catch (error) {
-        console.warn("Impossible de conserver la file cloud localement :", error);
+        console.warn("Impossible de conserver le marqueur de file cloud :", error);
     }
 }
 
