@@ -156,47 +156,78 @@ function userDocument() {
 let cloudDeletedDeckNames = [];
 let cloudDeletedCardKeys = [];
 
-export async function loadCloudDecks() {
+async function runWithConcurrency(items, limit, worker) {
+    const results = new Array(items.length);
+    let nextIndex = 0;
+    const workerCount = Math.min(Math.max(1, limit), items.length);
+
+    await Promise.all(Array.from({ length: workerCount }, async () => {
+        while (true) {
+            const index = nextIndex++;
+            if (index >= items.length) return;
+            results[index] = await worker(items[index], index);
+        }
+    }));
+
+    return results;
+}
+
+export async function loadCloudDecks(options = {}) {
     const user = auth.currentUser;
     const userRef = userDocument();
 
-    if (!user || !userRef) {
-        return null;
-    }
+    if (!user || !userRef) return null;
 
-    // Lire les métadonnées du serveur, sans dépendre d'une copie cache potentiellement ancienne.
+    const onProgress = typeof options.onProgress === "function" ? options.onProgress : null;
     const snapshot = await getDocFromServer(userRef);
     const data = snapshot.exists() ? snapshot.data() : {};
 
     cloudDeletedDeckNames = Array.isArray(data.deletedDeckNames) ? data.deletedDeckNames : [];
     cloudDeletedCardKeys = Array.isArray(data.deletedCardKeys) ? data.deletedCardKeys : [];
 
-    // Compatibilité/migration : récupérer aussi les anciens decks stockés dans le document utilisateur.
     const byName = new Map();
     const legacyDecks = Array.isArray(data.decks) ? data.decks : [];
     legacyDecks.forEach(deck => {
         if (deck && typeof deck.name === "string") byName.set(deck.name, deck);
     });
 
-    // Nouveau format : un document par deck et des morceaux de cartes séparés pour éviter la limite de 1 Mio.
     const deckSnapshots = await getDocs(collection(db, "users", user.uid, "decks"));
-    for (const deckSnapshot of deckSnapshots.docs) {
-        const stored = deckSnapshot.data();
-        if (!stored || typeof stored.name !== "string" || !stored.deck) continue;
+    const validDeckSnapshots = deckSnapshots.docs.filter(item => {
+        const stored = item.data();
+        return stored && typeof stored.name === "string" && stored.deck;
+    });
+    const totalCards = validDeckSnapshots.reduce((sum, item) => {
+        return sum + Math.max(0, Number(item.data().cardCount) || 0);
+    }, 0);
 
+    let completedCards = 0;
+    onProgress?.({ phase: "download", completed: 0, total: totalCards });
+
+    const downloadedDecks = await runWithConcurrency(validDeckSnapshots, 4, async deckSnapshot => {
+        const stored = deckSnapshot.data();
         const partsSnapshot = await getDocs(collection(db, "users", user.uid, "decks", deckSnapshot.id, "parts"));
         const parts = partsSnapshot.docs
             .map(part => ({ id: part.id, data: part.data() }))
             .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
-
         const cards = parts.flatMap(part => Array.isArray(part.data.cards) ? part.data.cards : []);
-        byName.set(stored.name, { ...stored.deck, name: stored.name, cards });
-    }
 
+        completedCards += cards.length;
+        onProgress?.({
+            phase: "download",
+            completed: Math.min(completedCards, totalCards || completedCards),
+            total: totalCards || completedCards,
+            deckName: stored.name
+        });
+
+        return { ...stored.deck, name: stored.name, cards };
+    });
+
+    downloadedDecks.forEach(deck => byName.set(deck.name, deck));
     return [...byName.values()];
 }
 
 
+// ==============================
 // ==============================
 // SAUVEGARDE CLOUD DIFFÉRÉE
 // ==============================
@@ -207,6 +238,7 @@ let saveTimer = null;
 let activeFlushPromise = null;
 let lastSaveError = null;
 let pendingSaveResolvers = [];
+let pendingProgressCallback = null;
 
 // Restaurer la dernière sauvegarde en attente après un rechargement ou une fermeture.
 try {
@@ -242,11 +274,12 @@ function scheduleCloudSave(delay = 1200) {
     }, delay);
 }
 
-export function saveDecksToCloud(decks) {
+export function saveDecksToCloud(decks, options = {}) {
     if (!Array.isArray(decks)) return Promise.resolve(false);
 
     // Garder la dernière version complète : elle inclut toutes les modifications précédentes.
     pendingDecks = JSON.parse(JSON.stringify(decks));
+    pendingProgressCallback = typeof options.onProgress === "function" ? options.onProgress : null;
     persistPendingDecks();
 
     // Pas de tentative réseau sans compte ou sans connexion. La file reste persistante.
@@ -271,7 +304,9 @@ async function flushCloudSave() {
 
     const decksSnapshot = pendingDecks;
     const resolversForSnapshot = pendingSaveResolvers.splice(0);
+    const progressCallback = pendingProgressCallback;
     pendingDecks = null;
+    pendingProgressCallback = null;
 
     const task = (async () => {
         try {
@@ -279,10 +314,14 @@ async function flushCloudSave() {
             const userRef = userDocument();
             if (!user || !userRef) throw new Error("Aucun compte Google connecté.");
 
-            // Stocker les decks séparément et découper les cartes en groupes de 50.
-            for (const deck of decksSnapshot) {
-                if (!deck || typeof deck.name !== "string") continue;
+            const validDecks = decksSnapshot.filter(deck => deck && typeof deck.name === "string");
+            const totalCards = validDecks.reduce((sum, deck) => {
+                return sum + (Array.isArray(deck.cards) ? deck.cards.length : 0);
+            }, 0);
+            let completedCards = 0;
+            progressCallback?.({ phase: "upload", completed: 0, total: totalCards });
 
+            await runWithConcurrency(validDecks, 3, async deck => {
                 const deckId = encodeURIComponent(deck.name);
                 const deckRef = doc(db, "users", user.uid, "decks", deckId);
                 const allCards = Array.isArray(deck.cards) ? deck.cards : [];
@@ -300,21 +339,27 @@ async function flushCloudSave() {
                 });
 
                 const oldParts = await getDocs(collection(db, "users", user.uid, "decks", deckId, "parts"));
-                for (const part of oldParts.docs) {
+                const obsoleteParts = oldParts.docs.filter(part => {
                     const partNumber = Number(part.id.replace("part_", ""));
-                    if (!Number.isInteger(partNumber) || partNumber >= chunks.length) {
-                        await deleteDoc(part.ref);
-                    }
-                }
+                    return !Number.isInteger(partNumber) || partNumber >= chunks.length;
+                });
+                await runWithConcurrency(obsoleteParts, 6, part => deleteDoc(part.ref));
 
-                for (let i = 0; i < chunks.length; i++) {
-                    const partId = "part_" + String(i).padStart(5, "0");
+                await runWithConcurrency(chunks, 6, async (chunk, index) => {
+                    const partId = "part_" + String(index).padStart(5, "0");
                     await setDoc(doc(db, "users", user.uid, "decks", deckId, "parts", partId), {
-                        cards: chunks[i],
+                        cards: chunk,
                         updatedAt: serverTimestamp()
                     });
-                }
-            }
+                    completedCards += chunk.length;
+                    progressCallback?.({
+                        phase: "upload",
+                        completed: Math.min(completedCards, totalCards),
+                        total: totalCards,
+                        deckName: deck.name
+                    });
+                });
+            });
 
             const deletedDeckNames = JSON.parse(localStorage.getItem("monanki_deleted_deck_names") || "[]");
             const deletedCardKeys = JSON.parse(localStorage.getItem("monanki_deleted_card_keys") || "[]");
@@ -327,9 +372,6 @@ async function flushCloudSave() {
             }, { merge: true });
 
             lastSaveError = null;
-
-            // Ne retirer la sauvegarde persistante que si aucune version plus récente
-            // n'a été mise en attente pendant l'envoi.
             if (pendingDecks === null) {
                 localStorage.removeItem(PENDING_CLOUD_KEY);
             } else {
@@ -343,9 +385,6 @@ async function flushCloudSave() {
             lastSaveError = error;
             if (pendingDecks === null) pendingDecks = decksSnapshot;
             persistPendingDecks();
-
-            // Résoudre false plutôt que rejeter : les appels de sauvegarde locaux
-            // ne doivent jamais produire de promesses rejetées non interceptées.
             resolversForSnapshot.forEach(({ resolve }) => resolve(false));
             console.warn("Sauvegarde cloud en attente :", error);
             return false;
@@ -655,7 +694,9 @@ export async function syncLocalDecksWithCloud(options = {}) {
                 );
             }
 
-            const cloudDecks = await loadCloudDecks();
+            const cloudDecks = await loadCloudDecks({
+                onProgress: progress => options.onProgress?.(progress)
+            });
 
             // Relire les données locales après l'attente réseau :
             // elles ont pu changer pendant ce temps.
@@ -690,7 +731,9 @@ export async function syncLocalDecksWithCloud(options = {}) {
             writeLocalDecks(merged);
 
             // Attendre la confirmation réelle de Firestore avant d'annoncer la réussite.
-            const cloudSaved = await saveDecksToCloud(merged);
+            const cloudSaved = await saveDecksToCloud(merged, {
+                onProgress: progress => options.onProgress?.(progress)
+            });
             if (cloudSaved !== true) {
                 throw lastSaveError || new Error("Les données sont conservées localement et seront synchronisées dès que possible.");
             }
