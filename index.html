@@ -1005,6 +1005,31 @@
         #card-search-input { width:100%; max-width:none; margin-bottom:12px; }
 </style>
 
+
+<style id="monanki-sync-animation">
+#sync-animation{display:none;margin:18px auto 10px;padding:18px 14px;border:1px solid #dfe7f5;border-radius:16px;background:linear-gradient(135deg,#f8faff,#eef3ff);text-align:center;overflow:hidden}
+#sync-section.is-syncing #sync-animation{display:block}
+.sync-scene{position:relative;width:190px;height:92px;margin:0 auto 10px}
+.sync-card{position:absolute;top:12px;left:50%;width:54px;height:68px;margin-left:-27px;border:1px solid #c9d7f5;border-radius:10px;background:#fff;box-shadow:0 5px 12px rgba(49,86,184,.12);display:grid;place-items:center;font-size:24px;color:#3156b8}
+.sync-card:nth-child(1){animation:sync-card-left 1.8s ease-in-out infinite}
+.sync-card:nth-child(2){animation:sync-card-center 1.8s ease-in-out infinite}
+.sync-card:nth-child(3){animation:sync-card-right 1.8s ease-in-out infinite}
+.sync-card:nth-child(4){animation:sync-card-back 1.8s ease-in-out infinite}
+@keyframes sync-card-left{0%,100%{transform:translate(-42px,5px) rotate(-13deg);opacity:.65}50%{transform:translate(-68px,-4px) rotate(-22deg);opacity:1}}
+@keyframes sync-card-center{0%,100%{transform:translate(0,0) rotate(0)}50%{transform:translate(0,-12px) rotate(3deg)}}
+@keyframes sync-card-right{0%,100%{transform:translate(42px,5px) rotate(13deg);opacity:.65}50%{transform:translate(68px,-4px) rotate(22deg);opacity:1}}
+@keyframes sync-card-back{0%,100%{transform:translate(0,7px) scale(.92);opacity:.4}50%{transform:translate(0,16px) scale(.92);opacity:.7}}
+.sync-progress-track{height:7px;max-width:310px;margin:12px auto 0;border-radius:99px;background:#dce5f7;overflow:hidden}
+.sync-progress-bar{width:38%;height:100%;border-radius:99px;background:#3156b8;animation:sync-progress 1.5s ease-in-out infinite}
+@keyframes sync-progress{0%{transform:translateX(-110%)}100%{transform:translateX(370%)}}
+#sync-animation-title{margin:0;color:#263b68;font-weight:750}
+#sync-animation-note{margin:4px 0 0;color:#64748b;font-size:13px}
+#sync-section.is-syncing #manual-sync-button{opacity:.75}
+#manual-sync-button .sync-button-spinner{display:inline-block;width:13px;height:13px;margin-right:7px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;vertical-align:-2px;animation:sync-spin .8s linear infinite}
+@keyframes sync-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.sync-card,.sync-progress-bar,#manual-sync-button .sync-button-spinner{animation:none!important}.sync-progress-bar{width:100%;transform:none}}
+</style>
+
 </head>
 
 
@@ -1172,6 +1197,18 @@
         class="sync-subtitle"
     ></p>
 
+    <div id="sync-animation" role="status" aria-live="polite" aria-label="Synchronisation en cours">
+        <div class="sync-scene" aria-hidden="true">
+            <div class="sync-card">📘</div>
+            <div class="sync-card">🗂️</div>
+            <div class="sync-card">📗</div>
+            <div class="sync-card">📙</div>
+        </div>
+        <p id="sync-animation-title">On rassemble tes cartes…</p>
+        <p id="sync-animation-note">La première synchronisation peut prendre un peu de temps.</p>
+        <div class="sync-progress-track" aria-hidden="true"><div class="sync-progress-bar"></div></div>
+    </div>
+
 </div>
 
 
@@ -1326,20 +1363,38 @@
                 document.getElementById("sync-status");
 
             const manualSyncButton = document.getElementById("manual-sync-button");
+            const syncSection = document.getElementById("sync-section");
+            const syncAnimationTitle = document.getElementById("sync-animation-title");
+            const syncAnimationNote = document.getElementById("sync-animation-note");
+
+            function showSyncAnimation(title = "On rassemble tes cartes…", note = "La première synchronisation peut prendre un peu de temps.") {
+                syncSection?.classList.add("is-syncing");
+                if (syncAnimationTitle) syncAnimationTitle.textContent = title;
+                if (syncAnimationNote) syncAnimationNote.textContent = note;
+            }
+
+            function hideSyncAnimation() {
+                syncSection?.classList.remove("is-syncing");
+            }
+
             manualSyncButton?.addEventListener("click", async () => {
                 if (manualSyncButton.disabled) return;
                 manualSyncButton.disabled = true;
-                manualSyncButton.textContent = "Synchronisation…";
-                if (syncStatus) syncStatus.textContent = "Actualisation des decks…";
+                manualSyncButton.innerHTML = '<span class="sync-button-spinner" aria-hidden="true"></span>Synchronisation…';
+                showSyncAnimation("On rassemble tes cartes…", "On récupère les decks enregistrés sur tes autres appareils.");
+                if (syncStatus) syncStatus.textContent = "Connexion au cloud…";
 
                 try {
                     const currentUser = await waitForAuth();
                     if (currentUser) {
+                        showSyncAnimation("On transfère tes cartes…", "Garde cette page ouverte jusqu’à la fin du transfert.");
+                        if (syncStatus) syncStatus.textContent = "Téléchargement et fusion des decks…";
                         await syncLocalDecksWithCloud({ waitForCompletion: true });
                         if (syncStatus) syncStatus.textContent = "✓ Synchronisation terminée et enregistrée dans le cloud.";
                     } else if (syncStatus) {
                         syncStatus.textContent = "Mode local : actualisation sur cet appareil.";
                     }
+                    showSyncAnimation("Tout est à jour !", "Tes cartes sont synchronisées.");
                     // Recharge les données visibles après la fusion locale/distante.
                     window.location.reload();
                 } catch (error) {
@@ -1349,6 +1404,7 @@
                     const errorMessage = detail?.message || error?.message || "détail indisponible";
                     if (syncStatus) syncStatus.textContent = `Échec de la synchronisation : ${errorCode} — ${errorMessage}`;
                     if (detail?.stack) console.error("Détail de l'erreur Firebase :", detail.stack);
+                    hideSyncAnimation();
                     manualSyncButton.disabled = false;
                     manualSyncButton.textContent = "↻ Réessayer la synchronisation";
                 }
@@ -1397,11 +1453,13 @@
 
                     syncStatus.textContent =
                         "Synchronisation avec Firestore...";
+                    showSyncAnimation("On rassemble tes cartes…", "Connexion au cloud et récupération des decks.");
 
                     await syncLocalDecksWithCloud({ waitForCompletion: true });
 
                     syncStatus.textContent =
                         "✓ Synchronisation terminée et enregistrée dans le cloud.";
+                    hideSyncAnimation();
                 } else {
                     loginButton.style.display = "inline-block";
                     logoutButton.style.display = "none";
