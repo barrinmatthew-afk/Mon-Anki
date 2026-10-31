@@ -1484,7 +1484,7 @@
                         "Synchronisation avec Firestore...";
                     showSyncAnimation("On rassemble tes cartes…", "Connexion au cloud et récupération des decks.");
 
-                    await syncLocalDecksWithCloud({ waitForCompletion: true });
+                    await syncLocalDecksWithCloud({ waitForCompletion: true, onProgress: updateSyncProgress });
 
                     syncStatus.textContent =
                         "✓ Synchronisation terminée et enregistrée dans le cloud.";
