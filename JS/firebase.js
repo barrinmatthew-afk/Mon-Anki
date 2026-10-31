@@ -201,20 +201,58 @@ export async function loadCloudDecks() {
 // SAUVEGARDE CLOUD DIFFÉRÉE
 // ==============================
 
+const PENDING_CLOUD_KEY = "monanki_pending_cloud_decks";
 let pendingDecks = null;
 let saveTimer = null;
-let flushing = false;
+let activeFlushPromise = null;
 let lastSaveError = null;
 let pendingSaveResolvers = [];
 
+// Restaurer la dernière sauvegarde en attente après un rechargement ou une fermeture.
+try {
+    const savedPending = localStorage.getItem(PENDING_CLOUD_KEY);
+    pendingDecks = savedPending ? JSON.parse(savedPending) : null;
+    if (!Array.isArray(pendingDecks)) pendingDecks = null;
+} catch (error) {
+    console.warn("File d'attente cloud illisible :", error);
+    pendingDecks = null;
+}
+
+function persistPendingDecks() {
+    try {
+        if (Array.isArray(pendingDecks)) {
+            localStorage.setItem(PENDING_CLOUD_KEY, JSON.stringify(pendingDecks));
+        } else {
+            localStorage.removeItem(PENDING_CLOUD_KEY);
+        }
+    } catch (error) {
+        console.warn("Impossible de conserver la file cloud localement :", error);
+    }
+}
+
+function scheduleCloudSave(delay = 1200) {
+    if (saveTimer) clearTimeout(saveTimer);
+    if (!pendingDecks || !auth.currentUser || !navigator.onLine) return;
+    saveTimer = setTimeout(() => {
+        saveTimer = null;
+        void flushCloudSave();
+    }, delay);
+}
 
 export function saveDecksToCloud(decks) {
-    if (!auth.currentUser || !Array.isArray(decks)) return Promise.resolve(false);
+    if (!Array.isArray(decks)) return Promise.resolve(false);
+
+    // Garder la dernière version complète : elle inclut toutes les modifications précédentes.
     pendingDecks = JSON.parse(JSON.stringify(decks));
-    const completion = new Promise((resolve, reject) => { pendingSaveResolvers.push({ resolve, reject }); });
-    if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => { saveTimer = null; void flushCloudSave(); }, 500);
-    // Résoudre uniquement après confirmation de l'écriture Firestore.
+    persistPendingDecks();
+
+    // Pas de tentative réseau sans compte ou sans connexion. La file reste persistante.
+    if (!auth.currentUser || !navigator.onLine) return Promise.resolve(false);
+
+    const completion = new Promise(resolve => {
+        pendingSaveResolvers.push({ resolve });
+    });
+    scheduleCloudSave();
     return completion;
 }
 
@@ -224,79 +262,122 @@ export function saveDecksToCloud(decks) {
 // ==============================
 
 async function flushCloudSave() {
-    if (flushing || pendingDecks === null || !auth.currentUser) return;
-    flushing = true;
+    if (activeFlushPromise) return activeFlushPromise;
+    if (!Array.isArray(pendingDecks)) return true;
+    if (!auth.currentUser || !navigator.onLine) return false;
+
     const decksSnapshot = pendingDecks;
     const resolversForSnapshot = pendingSaveResolvers.splice(0);
     pendingDecks = null;
-    try {
-        const user = auth.currentUser;
-        const userRef = userDocument();
-        if (!user || !userRef) throw new Error('Aucun compte Google connecté.');
 
-        // Stocker les decks séparément et découper les cartes en groupes de 50.
-        // Ainsi, aucun document n'approche la limite Firestore de 1 Mio.
-        for (const deck of decksSnapshot) {
-            if (!deck || typeof deck.name !== "string") continue;
+    const task = (async () => {
+        try {
+            const user = auth.currentUser;
+            const userRef = userDocument();
+            if (!user || !userRef) throw new Error("Aucun compte Google connecté.");
 
-            const deckId = encodeURIComponent(deck.name);
-            const deckRef = doc(db, "users", user.uid, "decks", deckId);
-            const allCards = Array.isArray(deck.cards) ? deck.cards : [];
-            const { cards: ignoredCards, ...deckMetadata } = deck;
-            const chunks = [];
-            for (let i = 0; i < allCards.length; i += 50) {
-                chunks.push(allCards.slice(i, i + 50));
-            }
+            // Stocker les decks séparément et découper les cartes en groupes de 50.
+            for (const deck of decksSnapshot) {
+                if (!deck || typeof deck.name !== "string") continue;
 
-            await setDoc(deckRef, {
-                name: deck.name,
-                deck: deckMetadata,
-                cardCount: allCards.length,
-                updatedAt: serverTimestamp()
-            });
+                const deckId = encodeURIComponent(deck.name);
+                const deckRef = doc(db, "users", user.uid, "decks", deckId);
+                const allCards = Array.isArray(deck.cards) ? deck.cards : [];
+                const { cards: ignoredCards, ...deckMetadata } = deck;
+                const chunks = [];
+                for (let i = 0; i < allCards.length; i += 50) {
+                    chunks.push(allCards.slice(i, i + 50));
+                }
 
-            const oldParts = await getDocs(collection(db, "users", user.uid, "decks", deckId, "parts"));
-            for (const part of oldParts.docs) {
-                const partNumber = Number(part.id.replace("part_", ""));
-                if (!Number.isInteger(partNumber) || partNumber >= chunks.length) {
-                    await deleteDoc(part.ref);
+                await setDoc(deckRef, {
+                    name: deck.name,
+                    deck: deckMetadata,
+                    cardCount: allCards.length,
+                    updatedAt: serverTimestamp()
+                });
+
+                const oldParts = await getDocs(collection(db, "users", user.uid, "decks", deckId, "parts"));
+                for (const part of oldParts.docs) {
+                    const partNumber = Number(part.id.replace("part_", ""));
+                    if (!Number.isInteger(partNumber) || partNumber >= chunks.length) {
+                        await deleteDoc(part.ref);
+                    }
+                }
+
+                for (let i = 0; i < chunks.length; i++) {
+                    const partId = "part_" + String(i).padStart(5, "0");
+                    await setDoc(doc(db, "users", user.uid, "decks", deckId, "parts", partId), {
+                        cards: chunks[i],
+                        updatedAt: serverTimestamp()
+                    });
                 }
             }
 
-            for (let i = 0; i < chunks.length; i++) {
-                const partId = "part_" + String(i).padStart(5, "0");
-                await setDoc(doc(db, "users", user.uid, "decks", deckId, "parts", partId), {
-                    cards: chunks[i],
-                    updatedAt: serverTimestamp()
-                });
+            const deletedDeckNames = JSON.parse(localStorage.getItem("monanki_deleted_deck_names") || "[]");
+            const deletedCardKeys = JSON.parse(localStorage.getItem("monanki_deleted_card_keys") || "[]");
+
+            await setDoc(userRef, {
+                decks: deleteField(),
+                deletedDeckNames: [...new Set([...cloudDeletedDeckNames, ...deletedDeckNames])],
+                deletedCardKeys: [...new Set([...cloudDeletedCardKeys, ...deletedCardKeys])],
+                updatedAt: serverTimestamp()
+            }, { merge: true });
+
+            lastSaveError = null;
+
+            // Ne retirer la sauvegarde persistante que si aucune version plus récente
+            // n'a été mise en attente pendant l'envoi.
+            if (pendingDecks === null) {
+                localStorage.removeItem(PENDING_CLOUD_KEY);
+            } else {
+                persistPendingDecks();
             }
+
+            resolversForSnapshot.forEach(({ resolve }) => resolve(true));
+            console.info("Progression synchronisée avec Firestore.");
+            return true;
+        } catch (error) {
+            lastSaveError = error;
+            if (pendingDecks === null) pendingDecks = decksSnapshot;
+            persistPendingDecks();
+
+            // Résoudre false plutôt que rejeter : les appels de sauvegarde locaux
+            // ne doivent jamais produire de promesses rejetées non interceptées.
+            resolversForSnapshot.forEach(({ resolve }) => resolve(false));
+            console.warn("Sauvegarde cloud en attente :", error);
+            return false;
         }
+    })();
 
-        const deletedDeckNames = JSON.parse(localStorage.getItem("monanki_deleted_deck_names") || "[]");
-        const deletedCardKeys = JSON.parse(localStorage.getItem("monanki_deleted_card_keys") || "[]");
-
-        // Supprimer l'ancien tableau géant du document utilisateur après migration.
-        // Le document racine ne contient désormais que les métadonnées de synchronisation.
-        await setDoc(userRef, {
-            decks: deleteField(),
-            deletedDeckNames: [...new Set([...cloudDeletedDeckNames, ...deletedDeckNames])],
-            deletedCardKeys: [...new Set([...cloudDeletedCardKeys, ...deletedCardKeys])],
-            updatedAt: serverTimestamp()
-        }, { merge: true });
-        lastSaveError = null;
-        resolversForSnapshot.forEach(({ resolve }) => resolve(true));
-        console.info('Progression synchronisée avec Firestore.');
-    } catch (error) {
-        lastSaveError = error;
-        if (pendingDecks === null) pendingDecks = decksSnapshot;
-        resolversForSnapshot.forEach(({ reject }) => reject(error));
-        console.warn('Sauvegarde cloud en attente :', error);
+    activeFlushPromise = task;
+    try {
+        return await task;
     } finally {
-        flushing = false;
-        if (pendingDecks !== null && auth.currentUser && !saveTimer) {
-            saveTimer = setTimeout(() => { saveTimer = null; void flushCloudSave(); }, lastSaveError ? 5000 : 100);
+        activeFlushPromise = null;
+        if (pendingDecks !== null && auth.currentUser && navigator.onLine && !saveTimer) {
+            scheduleCloudSave(lastSaveError ? 15000 : 500);
         }
     }
+}
+
+// Appelée explicitement à la fin d'une session. Elle attend la confirmation Firestore,
+// mais ne bloque pas indéfiniment l'utilisateur si le réseau est lent ou indisponible.
+export async function flushPendingCloudSave() {
+    if (!auth.currentUser || !navigator.onLine) return false;
+    if (saveTimer) {
+        clearTimeout(saveTimer);
+        saveTimer = null;
+    }
+
+    let timeoutId;
+    const result = await Promise.race([
+        flushCloudSave(),
+        new Promise(resolve => {
+            timeoutId = setTimeout(() => resolve(null), 10000);
+        })
+    ]);
+    clearTimeout(timeoutId);
+    return result === true;
 }
 
 
@@ -304,13 +385,13 @@ async function flushCloudSave() {
 // RÉESSAYER QUAND INTERNET REVIENT
 // ==============================
 
-window.addEventListener("online", () => {
-    if (pendingDecks && !saveTimer) {
-        saveTimer = setTimeout(() => {
-            saveTimer = null;
-            void flushCloudSave();
-        }, 50);
-    }
+window.addEventListener("online", () => scheduleCloudSave(800));
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") scheduleCloudSave(500);
+});
+
+onAuthStateChanged(auth, user => {
+    if (user) scheduleCloudSave(500);
 });
 
 
@@ -606,7 +687,10 @@ export async function syncLocalDecksWithCloud(options = {}) {
             writeLocalDecks(merged);
 
             // Attendre la confirmation réelle de Firestore avant d'annoncer la réussite.
-            await saveDecksToCloud(merged);
+            const cloudSaved = await saveDecksToCloud(merged);
+            if (cloudSaved !== true) {
+                throw lastSaveError || new Error("Les données sont conservées localement et seront synchronisées dès que possible.");
+            }
 
             console.info(
                 "Fusion locale/cloud terminée et enregistrée dans le cloud."
@@ -659,6 +743,7 @@ export async function syncLocalDecksWithCloud(options = {}) {
 // ==============================
 
 window.saveDecksToCloud = saveDecksToCloud;
+window.flushDecksToCloud = flushPendingCloudSave;
 
 
 /* ==============================
