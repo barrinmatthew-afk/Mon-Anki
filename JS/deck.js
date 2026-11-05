@@ -106,6 +106,18 @@ const newAnswerInput =
         "new-answer"
     );
 
+const newCardModeSelect =
+    document.getElementById("new-card-mode");
+
+function updateNewCardFields() {
+    const isDrawingCard = newCardModeSelect && newCardModeSelect.value === "drawing";
+    if (newAnswerInput) {
+        newAnswerInput.hidden = isDrawingCard;
+        newAnswerInput.required = !isDrawingCard;
+        newAnswerInput.placeholder = isDrawingCard ? "Réponse dessinée" : "Réponse";
+        if (isDrawingCard) newAnswerInput.value = "";
+    }
+}
 
 const addCardButton =
     document.getElementById(
@@ -1397,75 +1409,46 @@ function renderCards() {
 ========================= */
 
 function addCard() {
-
-    const question =
-        newQuestionInput.value.trim();
-
-
-    const answer =
-        newAnswerInput.value.trim();
-
+    const question = newQuestionInput.value.trim();
+    const mode = newCardModeSelect ? newCardModeSelect.value : "text";
+    const answer = newAnswerInput.value.trim();
 
     if (!question) {
-
-        alert(
-            "Entre une question."
-        );
-
+        alert("Entre une question.");
         return;
-
     }
 
-
-    if (!answer) {
-
-        alert(
-            "Entre une réponse."
-        );
-
+    if (mode !== "drawing" && !answer) {
+        alert("Entre une réponse.");
         return;
-
     }
 
-
-    deck.cards.push({
-
+    const newCard = {
         word: question,
-
-        answer: answer,
-
-        mode: "text",
-
+        answer: mode === "drawing" ? "" : answer,
+        mode,
         level: 0,
-
         interval: 1,
-
         nextReview: 0
+    };
+    if (mode === "drawing") newCard.drawing = "";
 
-    });
+    deck.cards.push(newCard);
+    saveDecks(decks);
 
-
-    saveDecks(
-        decks
-    );
-
-
-    newQuestionInput.value =
-        "";
-
-
-    newAnswerInput.value =
-        "";
-
+    newQuestionInput.value = "";
+    newAnswerInput.value = "";
+    if (newCardModeSelect) newCardModeSelect.value = "text";
+    updateNewCardFields();
 
     renderCards();
-
     updateSubtitle();
 
+    syncStatus.textContent = mode === "drawing"
+        ? "✓ Carte créée. Dessine sa réponse dans l’éditeur."
+        : "✓ Nouvelle carte ajoutée et synchronisée.";
 
-    syncStatus.textContent =
-        "✓ Nouvelle carte ajoutée et synchronisée.";
-
+    if (mode === "drawing") openDrawingEditor(newCard);
 }
 
 
@@ -1498,15 +1481,14 @@ renderCards();
    BOUTON AJOUTER
 ========================= */
 
-if (addCardButton) {
-
-    addCardButton.addEventListener(
-        "click",
-        addCard
-    );
-
+if (newCardModeSelect) {
+    newCardModeSelect.addEventListener("change", updateNewCardFields);
+    updateNewCardFields();
 }
 
+if (addCardButton) {
+    addCardButton.addEventListener("click", addCard);
+}
 
 if (newAnswerInput) {
 
