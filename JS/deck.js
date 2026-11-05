@@ -109,14 +109,27 @@ const newAnswerInput =
 const newCardModeSelect =
     document.getElementById("new-card-mode");
 
+const newCardDrawingArea = document.getElementById("new-card-drawing-area");
+const newCardDrawingCanvas = document.getElementById("new-card-drawing-canvas");
+const clearNewCardDrawingButton = document.getElementById("clear-new-card-drawing");
+const newCardDrawingContext = newCardDrawingCanvas.getContext("2d");
+let newCardIsDrawing = false;
+
+function clearNewCardDrawing() {
+    newCardDrawingContext.fillStyle = "white";
+    newCardDrawingContext.fillRect(0, 0, newCardDrawingCanvas.width, newCardDrawingCanvas.height);
+}
+
 function updateNewCardFields() {
     const isDrawingCard = newCardModeSelect && newCardModeSelect.value === "drawing";
     if (newAnswerInput) {
         newAnswerInput.hidden = isDrawingCard;
         newAnswerInput.required = !isDrawingCard;
-        newAnswerInput.placeholder = isDrawingCard ? "Réponse dessinée" : "Réponse";
+        newAnswerInput.placeholder = "Réponse";
         if (isDrawingCard) newAnswerInput.value = "";
     }
+    if (newCardDrawingArea) newCardDrawingArea.hidden = !isDrawingCard;
+    if (addCardButton) addCardButton.textContent = isDrawingCard ? "➕ Ajouter la carte dessinée" : "➕ Ajouter";
 }
 
 const addCardButton =
@@ -1444,7 +1457,9 @@ function addCard() {
         interval: 1,
         nextReview: 0
     };
-    if (mode === "drawing") newCard.drawing = "";
+    if (mode === "drawing") {
+        newCard.drawing = newCardDrawingCanvas.toDataURL("image/png");
+    }
 
     deck.cards.push(newCard);
     saveDecks(decks);
@@ -1452,16 +1467,13 @@ function addCard() {
     newQuestionInput.value = "";
     newAnswerInput.value = "";
     if (newCardModeSelect) newCardModeSelect.value = "text";
+    clearNewCardDrawing();
     updateNewCardFields();
 
     renderCards();
     updateSubtitle();
 
-    syncStatus.textContent = mode === "drawing"
-        ? "✓ Carte créée. Dessine sa réponse dans l’éditeur."
-        : "✓ Nouvelle carte ajoutée et synchronisée.";
-
-    if (mode === "drawing") openDrawingEditor(newCard);
+    syncStatus.textContent = "✓ Nouvelle carte ajoutée et synchronisée.";
 }
 
 
@@ -1493,6 +1505,56 @@ renderCards();
 /* =========================
    BOUTON AJOUTER
 ========================= */
+
+if (newCardDrawingCanvas) {
+    clearNewCardDrawing();
+
+    function getNewCardCanvasPoint(event) {
+        const rect = newCardDrawingCanvas.getBoundingClientRect();
+        return {
+            x: (event.clientX - rect.left) * newCardDrawingCanvas.width / rect.width,
+            y: (event.clientY - rect.top) * newCardDrawingCanvas.height / rect.height
+        };
+    }
+
+    newCardDrawingCanvas.addEventListener("pointerdown", event => {
+        event.preventDefault();
+        newCardIsDrawing = true;
+        const point = getNewCardCanvasPoint(event);
+        newCardDrawingCanvas.setPointerCapture(event.pointerId);
+        newCardDrawingContext.beginPath();
+        newCardDrawingContext.arc(point.x, point.y, 2, 0, Math.PI * 2);
+        newCardDrawingContext.fillStyle = "black";
+        newCardDrawingContext.fill();
+        newCardDrawingContext.beginPath();
+        newCardDrawingContext.moveTo(point.x, point.y);
+    });
+
+    newCardDrawingCanvas.addEventListener("pointermove", event => {
+        if (!newCardIsDrawing) return;
+        event.preventDefault();
+        const point = getNewCardCanvasPoint(event);
+        newCardDrawingContext.lineWidth = 4;
+        newCardDrawingContext.lineCap = "round";
+        newCardDrawingContext.lineJoin = "round";
+        newCardDrawingContext.strokeStyle = "black";
+        newCardDrawingContext.lineTo(point.x, point.y);
+        newCardDrawingContext.stroke();
+    });
+
+    const stopNewCardDrawing = event => {
+        newCardIsDrawing = false;
+        if (newCardDrawingCanvas.hasPointerCapture(event.pointerId)) {
+            newCardDrawingCanvas.releasePointerCapture(event.pointerId);
+        }
+    };
+    newCardDrawingCanvas.addEventListener("pointerup", stopNewCardDrawing);
+    newCardDrawingCanvas.addEventListener("pointercancel", () => { newCardIsDrawing = false; });
+}
+
+if (clearNewCardDrawingButton) {
+    clearNewCardDrawingButton.addEventListener("click", clearNewCardDrawing);
+}
 
 if (newCardModeSelect) {
     newCardModeSelect.addEventListener("change", updateNewCardFields);
