@@ -146,6 +146,9 @@ const drawingCanvas =
         "drawing-canvas"
     );
 
+const drawingEditorTitle = document.getElementById("drawing-editor-title");
+const drawingEditorHelp = document.getElementById("drawing-editor-help");
+
 
 const clearDrawingButton =
     document.getElementById(
@@ -535,6 +538,11 @@ function openDrawingEditor(
     drawingEditorCard =
         card;
 
+    const isNewCard = !card.drawing;
+    if (drawingEditorTitle) drawingEditorTitle.textContent = isNewCard ? "Dessiner la réponse" : "Modifier le dessin";
+    if (drawingEditorHelp) drawingEditorHelp.textContent = isNewCard
+        ? "Dessine la réponse avec ton doigt, ta souris ou un stylet, puis appuie sur « Enregistrer le dessin »."
+        : "Dessine directement sur le dessin existant.";
 
     originalDrawing =
         card.drawing || "";
@@ -650,7 +658,12 @@ drawingCanvas.addEventListener(
 
         drawingContext.beginPath();
 
+        drawingContext.fillStyle = "black";
+        drawingContext.beginPath();
+        drawingContext.arc(lastX, lastY, 1.5, 0, Math.PI * 2);
+        drawingContext.fill();
 
+        drawingContext.beginPath();
         drawingContext.moveTo(
             lastX,
             lastY
@@ -852,7 +865,7 @@ saveDrawingButton.addEventListener(
 
 
         syncStatus.textContent =
-            "✓ Dessin modifié et synchronisé.";
+            "✓ Dessin enregistré et synchronisé.";
 
 
         closeDrawingEditor();
