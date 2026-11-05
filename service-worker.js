@@ -1,5 +1,5 @@
 
-const CACHE_NAME = "mon-anki-v48";
+const CACHE_NAME = "mon-anki-v49";
 
 const APP_FILES = [
     "./",
