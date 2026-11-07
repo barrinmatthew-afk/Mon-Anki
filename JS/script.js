@@ -219,17 +219,9 @@ function renderDeckElement(
                 <button
                     class="study-button"
                     data-deck-name="${escapeHTML(deck.name)}"
-                    ${learningAvailableCount === 0 ? "disabled" : ""}
+                    ${learningAvailableCount + reviewAvailableCount === 0 ? "disabled" : ""}
                 >
-                    Apprentissage
-                </button>
-
-                <button
-                    class="review-button"
-                    data-deck-name="${escapeHTML(deck.name)}"
-                    ${reviewAvailableCount === 0 ? "disabled" : ""}
-                >
-                    Révision
+                    Étudier
                 </button>` : ""}
 
 
@@ -446,13 +438,8 @@ function renderDeckTreeNode(node, isRootGroup = true, parentPath = "") {
         studyActions.innerHTML = `
             <button type="button" class="study-button"
                 data-deck-name="${escapeHTML(fullDeckName)}"
-                ${studyCounts.learning === 0 ? "disabled" : ""}>
-                Apprentissage
-            </button>
-            <button type="button" class="review-button"
-                data-deck-name="${escapeHTML(node.label)}"
-                ${studyCounts.review === 0 ? "disabled" : ""}>
-                Révision
+                ${studyCounts.learning + studyCounts.review === 0 ? "disabled" : ""}>
+                Étudier
             </button>
         `;
         header.appendChild(studyActions);
@@ -567,7 +554,7 @@ function displayDecks() {
     ========================= */
 
     container
-        .querySelectorAll(".study-button, .review-button")
+        .querySelectorAll(".study-button")
         .forEach(button => {
 
             button.addEventListener("click", () => {
@@ -585,7 +572,7 @@ function displayDecks() {
                 localStorage.setItem("selectedDeck", deckName);
                 localStorage.setItem(
                     "selectedStudyType",
-                    button.classList.contains("review-button") ? "review" : "learning"
+                    "all"
                 );
 
                 window.location.href = "study.html";
