@@ -399,6 +399,22 @@ function renderDeckTreeNode(node, isRootGroup = true) {
 
     header.appendChild(toggle);
 
+    // Un groupe qui correspond à un vrai deck parent doit pouvoir être supprimé
+    // directement depuis son en-tête, sans devoir ouvrir le groupe.
+    if (node.entry) {
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.className = "delete-button";
+        deleteButton.dataset.index = String(node.entry.index);
+        deleteButton.textContent = "Supprimer";
+        deleteButton.title = "Supprimer ce deck et tous ses sous-decks";
+        deleteButton.setAttribute(
+            "aria-label",
+            "Supprimer " + node.entry.deck.name + " et tous ses sous-decks"
+        );
+        header.appendChild(deleteButton);
+    }
+
     // Sélecteur de couleur directement sur le groupe parent (ex. Droit).
     const colorLabel = document.createElement("label");
     colorLabel.className = "deck-color-label group-color-label";
