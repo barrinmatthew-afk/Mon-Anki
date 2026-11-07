@@ -461,10 +461,7 @@ function scheduleCloudRefresh() {
 
         // Ne jamais remplacer des changements locaux qui attendent encore leur envoi.
         if (!auth.currentUser) return;
-        if (syncPromise || activeFlushPromise || pendingDecks !== null) {
-            scheduleCloudRefresh();
-            return;
-        }
+        if (syncPromise || activeFlushPromise || pendingDecks !== null) return;
 
         try {
             const remoteDecks = await loadCloudDecks();
@@ -472,10 +469,7 @@ function scheduleCloudRefresh() {
 
             // Vérifier à nouveau après le téléchargement : l'utilisateur a pu
             // modifier une carte pendant la lecture du cloud.
-            if (activeFlushPromise || pendingDecks !== null) {
-                scheduleCloudRefresh();
-                return;
-            }
+            if (activeFlushPromise || pendingDecks !== null) return;
 
             const raw = localStorage.getItem("decks") || "[]";
             const localDecks = JSON.parse(raw);
