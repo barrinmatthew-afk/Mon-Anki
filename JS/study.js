@@ -84,18 +84,44 @@ const deckNameElement =
 
 if (deckNameElement) {
 
-    const studyType = localStorage.getItem("selectedStudyType") || "all";
-    const studyLabel = studyType === "learning"
-        ? "Apprentissage"
-        : studyType === "review"
-            ? "Révision"
-            : "Session complète";
-
     deckNameElement.textContent =
-        `${deck.name} — ${deck.cards.length} carte(s) · ${studyLabel}`;
+        deck.name + " — " + deck.cards.length + " carte(s)";
 
 }
 
+
+// ==============================
+// TYPE DE SESSION
+// ==============================
+
+let selectedStudyType = localStorage.getItem("selectedStudyType") || "all";
+
+const studyTypeButtons = {
+    all: document.querySelector("#study-all"),
+    learning: document.querySelector("#study-learning"),
+    review: document.querySelector("#study-review")
+};
+
+function updateStudyTypeSelection() {
+    Object.entries(studyTypeButtons).forEach(([type, button]) => {
+        if (button) button.classList.toggle("selected", type === selectedStudyType);
+    });
+
+    const labels = { all: "Session complète", learning: "Apprentissage", review: "Révision" };
+    if (deckNameElement) {
+        deckNameElement.textContent = deck.name + " — " + deck.cards.length + " carte(s) · " + labels[selectedStudyType];
+    }
+}
+
+Object.entries(studyTypeButtons).forEach(([type, button]) => {
+    if (!button) return;
+    button.addEventListener("click", () => {
+        selectedStudyType = type;
+        updateStudyTypeSelection();
+    });
+});
+
+updateStudyTypeSelection();
 
 // ==============================
 // PARAMÈTRES
@@ -531,6 +557,12 @@ if (startButton) {
     startButton.addEventListener(
         "click",
         () => {
+
+            localStorage.setItem(
+                "selectedStudyType",
+                selectedStudyType
+            );
+
 
             localStorage.setItem(
                 "selectedDirection",
