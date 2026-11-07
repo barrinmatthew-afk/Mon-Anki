@@ -157,6 +157,16 @@ function renderDeckElement(
     const dueCount =
         dueCards.length;
 
+    const learningAvailableCount = deck.cards.filter(card =>
+        !card.state ||
+        card.state === "new" ||
+        (card.state === "learning" && isCardDue(card))
+    ).length;
+
+    const reviewAvailableCount = deck.cards.filter(card =>
+        card.state === "review" && isCardDue(card)
+    ).length;
+
 
     const deckElement =
         document.createElement("div");
@@ -207,9 +217,17 @@ function renderDeckElement(
                 <button
                     class="study-button"
                     data-index="${index}"
-                    ${dueCount === 0 ? "disabled" : ""}
+                    ${learningAvailableCount === 0 ? "disabled" : ""}
                 >
-                    Étudier
+                    Apprentissage
+                </button>
+
+                <button
+                    class="review-button"
+                    data-index="${index}"
+                    ${reviewAvailableCount === 0 ? "disabled" : ""}
+                >
+                    Révision
                 </button>
 
 
@@ -474,19 +492,18 @@ function displayDecks() {
     ========================= */
 
     container
-        .querySelectorAll(".study-button")
+        .querySelectorAll(".study-button, .review-button")
         .forEach(button => {
 
             button.addEventListener("click", () => {
 
-                const index =
-                    Number(button.dataset.index);
-
+                const index = Number(button.dataset.index);
                 const decks = loadDecks();
 
+                localStorage.setItem("selectedDeck", decks[index].name);
                 localStorage.setItem(
-                    "selectedDeck",
-                    decks[index].name
+                    "selectedStudyType",
+                    button.classList.contains("review-button") ? "review" : "learning"
                 );
 
                 window.location.href = "study.html";
