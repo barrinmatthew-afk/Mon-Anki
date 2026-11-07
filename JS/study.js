@@ -66,8 +66,15 @@ const deckNameElement =
 
 if (deckNameElement) {
 
+    const studyType = localStorage.getItem("selectedStudyType") || "all";
+    const studyLabel = studyType === "learning"
+        ? "Apprentissage"
+        : studyType === "review"
+            ? "Révision"
+            : "Session complète";
+
     deckNameElement.textContent =
-        `${deck.name} — ${deck.cards.length} carte(s)`;
+        `${deck.name} — ${deck.cards.length} carte(s) · ${studyLabel}`;
 
 }
 
