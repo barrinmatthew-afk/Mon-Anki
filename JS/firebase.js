@@ -860,6 +860,57 @@ export async function syncLocalDecksWithCloud(options = {}) {
 }
 
 
+// Actualisation manuelle : récupérer les changements du PC sans réenvoyer
+// inutilement les quelque milliers de cartes déjà présentes dans le cloud.
+export async function refreshLocalDecksFromCloud(options = {}) {
+    const user = await waitForAuth();
+    if (!user) throw new Error("Aucun compte Google connecté.");
+
+    try {
+        // Terminer d'abord toute sauvegarde locale encore en attente.
+        if (pendingDecks !== null || activeFlushPromise || saveTimer) {
+            const saved = await flushPendingCloudSave();
+            if (!saved) {
+                throw lastSaveError || new Error("Les changements locaux en attente n'ont pas pu être envoyés.");
+            }
+        }
+
+        const cloudDecks = await loadCloudDecks({
+            onProgress: progress => options.onProgress?.(progress)
+        });
+
+        if (!Array.isArray(cloudDecks)) {
+            throw new Error("Le cloud n'a pas renvoyé de liste de decks valide.");
+        }
+
+        let localDecks = [];
+        try {
+            const raw = localStorage.getItem("decks");
+            localDecks = raw ? JSON.parse(raw) : [];
+        } catch (error) {
+            throw new Error("Les decks présents sur cet appareil sont illisibles.");
+        }
+
+        const merged = mergeDeckLists(localDecks, cloudDecks);
+        if (!writeLocalDecks(merged)) {
+            throw new Error("Impossible d'enregistrer les changements récupérés sur cet appareil.");
+        }
+
+        window.cloudSyncLastError = null;
+        console.info("Actualisation terminée : changements du cloud récupérés localement.");
+        return true;
+    } catch (error) {
+        window.cloudSyncLastError = {
+            code: error?.code || "",
+            name: error?.name || "Error",
+            message: error?.message || String(error),
+            stack: error?.stack || ""
+        };
+        throw error;
+    }
+}
+
+
 // ==============================
 // SAUVEGARDE ACCESSIBLE AUX AUTRES SCRIPTS
 // ==============================
