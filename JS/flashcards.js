@@ -599,10 +599,14 @@ cardDifficultButton?.addEventListener("click", async () => {
 // DECK
 // ==============================
 
-const deck =
-    decks.find(
-        d => d.name === selectedDeckName
-    );
+// Un deck général regroupe ses propres cartes et celles de tous
+// ses sous-decks (ex. Droit::CM1, Droit::CM2).
+const matchingDecks = decks.filter(d =>
+    d.name === selectedDeckName ||
+    d.name.startsWith(selectedDeckName + "::")
+);
+
+const deck = matchingDecks[0];
 
 
 if (!deck) {
@@ -617,11 +621,11 @@ if (!deck) {
     );
 }
 
-
-const cards =
-    Array.isArray(deck.cards)
-        ? deck.cards
-        : [];
+// Les cartes restent les objets d'origine dans "decks" :
+// leur progression SRS est donc sauvegardée dans leur sous-deck respectif.
+const cards = matchingDecks.flatMap(item =>
+    Array.isArray(item.cards) ? item.cards : []
+);
 
 
 
