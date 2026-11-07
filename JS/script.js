@@ -148,7 +148,8 @@ function getDueCards(deck) {
 function renderDeckElement(
     deck,
     index,
-    displayName
+    displayName,
+    showStudyButtons = true
 ) {
 
     const dueCards =
@@ -214,9 +215,10 @@ function renderDeckElement(
                     <input class="deck-color-picker" type="color" data-root-name="${escapeHTML(deck.name)}" value="${getDeckColor(deck)}" aria-label="Couleur du deck ${escapeHTML(deck.name)}">
                 </label>` : ""}
 
+                ${showStudyButtons ? `
                 <button
                     class="study-button"
-                    data-index="${index}"
+                    data-deck-name="${escapeHTML(deck.name)}"
                     ${learningAvailableCount === 0 ? "disabled" : ""}
                 >
                     Apprentissage
@@ -224,11 +226,11 @@ function renderDeckElement(
 
                 <button
                     class="review-button"
-                    data-index="${index}"
+                    data-deck-name="${escapeHTML(deck.name)}"
                     ${reviewAvailableCount === 0 ? "disabled" : ""}
                 >
                     Révision
-                </button>
+                </button>` : ""}
 
 
                 <button
@@ -304,6 +306,33 @@ function countDueInTree(node) {
     return total;
 }
 
+function countStudyAvailabilityInTree(node) {
+    let learning = 0;
+    let review = 0;
+
+    const countDeck = deck => {
+        const cards = Array.isArray(deck.cards) ? deck.cards : [];
+        learning += cards.filter(card =>
+            !card.state ||
+            card.state === "new" ||
+            (card.state === "learning" && isCardDue(card))
+        ).length;
+        review += cards.filter(card =>
+            (card.state === "learning" || card.state === "review") &&
+            isCardDue(card)
+        ).length;
+    };
+
+    if (node.entry) countDeck(node.entry.deck);
+    node.children.forEach(child => {
+        const counts = countStudyAvailabilityInTree(child);
+        learning += counts.learning;
+        review += counts.review;
+    });
+
+    return { learning, review };
+}
+
 
 function renderDeckTreeNode(node, isRootGroup = true) {
     // Un deck sans sous-deck garde son affichage habituel.
@@ -311,7 +340,8 @@ function renderDeckTreeNode(node, isRootGroup = true) {
         return renderDeckElement(
             node.entry.deck,
             node.entry.index,
-            node.label
+            node.label,
+            isRootGroup
         );
     }
 
@@ -365,7 +395,8 @@ function renderDeckTreeNode(node, isRootGroup = true) {
             renderDeckElement(
                 node.entry.deck,
                 node.entry.index,
-                node.label
+                node.label,
+                false
             )
         );
     }
@@ -398,6 +429,27 @@ function renderDeckTreeNode(node, isRootGroup = true) {
     });
 
     header.appendChild(toggle);
+
+    // Les boutons d'étude n'apparaissent que sur les decks généraux.
+    // Ils lancent une session regroupant les cartes de toute la branche.
+    if (isRootGroup) {
+        const studyCounts = countStudyAvailabilityInTree(node);
+        const studyActions = document.createElement("div");
+        studyActions.className = "deck-actions group-study-actions";
+        studyActions.innerHTML = `
+            <button type="button" class="study-button"
+                data-deck-name="${escapeHTML(node.label)}"
+                ${studyCounts.learning === 0 ? "disabled" : ""}>
+                Apprentissage
+            </button>
+            <button type="button" class="review-button"
+                data-deck-name="${escapeHTML(node.label)}"
+                ${studyCounts.review === 0 ? "disabled" : ""}>
+                Révision
+            </button>
+        `;
+        header.appendChild(studyActions);
+    }
 
     // Un groupe qui correspond à un vrai deck parent doit pouvoir être supprimé
     // directement depuis son en-tête, sans devoir ouvrir le groupe.
@@ -513,10 +565,17 @@ function displayDecks() {
 
             button.addEventListener("click", () => {
 
-                const index = Number(button.dataset.index);
+                const deckName = button.dataset.deckName;
                 const decks = loadDecks();
 
-                localStorage.setItem("selectedDeck", decks[index].name);
+                if (!deckName || !decks.some(deck =>
+                    deck.name === deckName || deck.name.startsWith(deckName + "::")
+                )) {
+                    alert("Impossible de retrouver ce deck. Actualise la page puis réessaie.");
+                    return;
+                }
+
+                localStorage.setItem("selectedDeck", deckName);
                 localStorage.setItem(
                     "selectedStudyType",
                     button.classList.contains("review-button") ? "review" : "learning"
