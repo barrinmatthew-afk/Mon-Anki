@@ -1349,6 +1349,11 @@ body{max-width:1240px!important;margin:0 auto!important;padding:34px 28px 64px!i
     if ("serviceWorker" in navigator) {
         navigator.serviceWorker
             .register("./service-worker.js")
+            .then(registration => {
+                // Sur iOS/PWA, déclencher explicitement la vérification
+                // afin de ne pas rester sur une ancienne version en cache.
+                return registration.update();
+            })
             .catch(error => {
                 console.warn(
                     "Service worker indisponible :",
