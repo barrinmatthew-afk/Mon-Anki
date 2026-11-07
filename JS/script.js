@@ -164,7 +164,7 @@ function renderDeckElement(
     ).length;
 
     const reviewAvailableCount = deck.cards.filter(card =>
-        card.state === "review" && isCardDue(card)
+        (card.state === "learning" || card.state === "review") && isCardDue(card)
     ).length;
 
 
