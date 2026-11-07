@@ -22,6 +22,10 @@ const selectedMode =
     localStorage.getItem("selectedMode") ||
     "flashcard";
 
+const selectedStudyType =
+    localStorage.getItem("selectedStudyType") ||
+    "all";
+
 
 const newCardLimit =
     Number(
@@ -832,16 +836,30 @@ function buildQueue() {
             reviewLimit
         );
 
+    let newQueue;
 
-    const newQueue = [
-
-        ...learningCards,
-
-        ...limitedNew,
-
-        ...limitedReview
-
-    ];
+    if (selectedStudyType === "learning") {
+        // Apprentissage : cartes nouvelles (dans la limite choisie)
+        // et cartes d'apprentissage arrivées à échéance.
+        newQueue = [
+            ...learningCards,
+            ...limitedNew
+        ];
+    } else if (selectedStudyType === "review") {
+        // Révision : toutes les cartes déjà dues, sans limite quotidienne.
+        // Les cartes encore en apprentissage restent incluses.
+        newQueue = [
+            ...learningCards,
+            ...reviewCards
+        ];
+    } else {
+        // Compatibilité avec les anciennes sessions et les accès historiques.
+        newQueue = [
+            ...learningCards,
+            ...limitedNew,
+            ...limitedReview
+        ];
+    }
 
 
 
