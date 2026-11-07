@@ -341,7 +341,7 @@ function renderDeckTreeNode(node, isRootGroup = true) {
             node.entry.deck,
             node.entry.index,
             node.label,
-            isRootGroup
+            true
         );
     }
 
@@ -430,9 +430,10 @@ function renderDeckTreeNode(node, isRootGroup = true) {
 
     header.appendChild(toggle);
 
-    // Les boutons d'étude n'apparaissent que sur les decks généraux.
-    // Ils lancent une session regroupant les cartes de toute la branche.
-    if (isRootGroup) {
+    // Chaque groupe/deck parent garde ses propres boutons.
+    // Ils lancent une session avec toutes les cartes de sa branche,
+    // sans empêcher d'étudier séparément ses sous-decks.
+    {
         const studyCounts = countStudyAvailabilityInTree(node);
         const studyActions = document.createElement("div");
         studyActions.className = "deck-actions group-study-actions";
