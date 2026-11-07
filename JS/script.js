@@ -334,7 +334,13 @@ function countStudyAvailabilityInTree(node) {
 }
 
 
-function renderDeckTreeNode(node, isRootGroup = true) {
+function renderDeckTreeNode(node, isRootGroup = true, parentPath = "") {
+    // Conserver le chemin complet : un sous-groupe peut avoir le même nom
+    // qu'un autre ailleurs dans l'arborescence.
+    const fullDeckName = parentPath
+        ? parentPath + "::" + node.label
+        : node.label;
+
     // Un deck sans sous-deck garde son affichage habituel.
     if (node.children.size === 0 && node.entry) {
         return renderDeckElement(
@@ -403,7 +409,7 @@ function renderDeckTreeNode(node, isRootGroup = true) {
 
     node.children.forEach(child => {
         content.appendChild(
-            renderDeckTreeNode(child, false)
+            renderDeckTreeNode(child, false, fullDeckName)
         );
     });
 
@@ -439,7 +445,7 @@ function renderDeckTreeNode(node, isRootGroup = true) {
         studyActions.className = "deck-actions group-study-actions";
         studyActions.innerHTML = `
             <button type="button" class="study-button"
-                data-deck-name="${escapeHTML(node.label)}"
+                data-deck-name="${escapeHTML(fullDeckName)}"
                 ${studyCounts.learning === 0 ? "disabled" : ""}>
                 Apprentissage
             </button>
