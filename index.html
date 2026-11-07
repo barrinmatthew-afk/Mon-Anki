@@ -1387,7 +1387,8 @@ body{max-width:1240px!important;margin:0 auto!important;padding:34px 28px 64px!i
             loginWithGoogle,
             logout,
             waitForAuth,
-            syncLocalDecksWithCloud
+            syncLocalDecksWithCloud,
+            refreshLocalDecksFromCloud
         }) => {
             const loginButton =
                 document.getElementById("login-button");
@@ -1452,17 +1453,17 @@ body{max-width:1240px!important;margin:0 auto!important;padding:34px 28px 64px!i
                 try {
                     const currentUser = await waitForAuth();
                     if (currentUser) {
-                        showSyncAnimation("On transfère tes cartes…", "Garde cette page ouverte jusqu’à la fin du transfert.");
-                        if (syncStatus) syncStatus.textContent = "Téléchargement et fusion des decks…";
-                        await syncLocalDecksWithCloud({ waitForCompletion: true, onProgress: updateSyncProgress });
-                        if (syncStatus) syncStatus.textContent = "✓ Synchronisation terminée et enregistrée dans le cloud.";
+                        showSyncAnimation("On récupère les changements…", "Téléchargement des modifications enregistrées depuis tes autres appareils.");
+                        if (syncStatus) syncStatus.textContent = "Téléchargement et fusion des changements…";
+                        await refreshLocalDecksFromCloud({ onProgress: updateSyncProgress });
+                        if (syncStatus) syncStatus.textContent = "✓ Changements récupérés et enregistrés sur cet appareil.";
                     } else if (syncStatus) {
                         syncStatus.textContent = "Mode local : actualisation sur cet appareil.";
                     }
-                    showSyncAnimation("Tout est à jour !", "Tes cartes sont synchronisées.");
+                    showSyncAnimation("Tout est à jour !", "Les changements disponibles ont été récupérés.");
                     hideSyncAnimation();
                     manualSyncButton.disabled = false;
-                    manualSyncButton.textContent = "✓ Synchronisé";
+                    manualSyncButton.textContent = "✓ À jour";
                 } catch (error) {
                     console.error("Erreur lors de la synchronisation manuelle :", error);
                     const detail = window.cloudSyncLastError;
