@@ -32,11 +32,22 @@ const selectedDeckName =
 const decks =
     loadDecks();
 
-const deck =
-    decks.find(
-        currentDeck =>
-            currentDeck.name === selectedDeckName
-    );
+// Un deck parent peut être un groupe virtuel sans cartes propres.
+ // Pour une session globale, inclure le deck exact et tous ses sous-decks.
+const matchingDecks = decks.filter(currentDeck =>
+    currentDeck.name === selectedDeckName ||
+    currentDeck.name.startsWith(selectedDeckName + "::")
+);
+
+const deck = matchingDecks.length
+    ? {
+        ...matchingDecks[0],
+        name: selectedDeckName,
+        cards: matchingDecks.flatMap(currentDeck =>
+            Array.isArray(currentDeck.cards) ? currentDeck.cards : []
+        )
+    }
+    : null;
 
 
 // ==============================
