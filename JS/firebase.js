@@ -326,10 +326,27 @@ async function flushCloudSave() {
                 const deckRef = doc(db, "users", user.uid, "decks", deckId);
                 const allCards = Array.isArray(deck.cards) ? deck.cards : [];
                 const { cards: ignoredCards, ...deckMetadata } = deck;
+                // Firestore limite chaque document à 1 Mio. Un nombre fixe de
+                // cartes par lot ne suffit pas : une carte dessinée peut être lourde.
                 const chunks = [];
-                for (let i = 0; i < allCards.length; i += 50) {
-                    chunks.push(allCards.slice(i, i + 50));
+                const maxChunkBytes = 650 * 1024;
+                let currentChunk = [];
+                let currentChunkBytes = 16;
+
+                for (const card of allCards) {
+                    const cardBytes = new TextEncoder().encode(JSON.stringify(card)).length + 1;
+                    if (cardBytes + 16 > maxChunkBytes) {
+                        throw new Error("Une carte du deck « " + deck.name + " » dépasse la taille maximale autorisée pour un lot cloud. Réduis son image ou son dessin.");
+                    }
+                    if (currentChunk.length && currentChunkBytes + cardBytes > maxChunkBytes) {
+                        chunks.push(currentChunk);
+                        currentChunk = [];
+                        currentChunkBytes = 16;
+                    }
+                    currentChunk.push(card);
+                    currentChunkBytes += cardBytes;
                 }
+                if (currentChunk.length) chunks.push(currentChunk);
 
                 await setDoc(deckRef, {
                     name: deck.name,
@@ -432,8 +449,73 @@ document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") scheduleCloudSave(500);
 });
 
+// Réception automatique des changements faits sur un autre appareil.
+let cloudUserUnsubscribe = null;
+let cloudRefreshTimer = null;
+let cloudSnapshotInitialized = false;
+
+function scheduleCloudRefresh() {
+    if (cloudRefreshTimer) clearTimeout(cloudRefreshTimer);
+    cloudRefreshTimer = setTimeout(async () => {
+        cloudRefreshTimer = null;
+
+        // Ne jamais remplacer des changements locaux qui attendent encore leur envoi.
+        if (!auth.currentUser) return;
+        if (syncPromise || activeFlushPromise || pendingDecks !== null) {
+            scheduleCloudRefresh();
+            return;
+        }
+
+        try {
+            const remoteDecks = await loadCloudDecks();
+            if (!Array.isArray(remoteDecks)) return;
+
+            // Vérifier à nouveau après le téléchargement : l'utilisateur a pu
+            // modifier une carte pendant la lecture du cloud.
+            if (activeFlushPromise || pendingDecks !== null) {
+                scheduleCloudRefresh();
+                return;
+            }
+
+            const raw = localStorage.getItem("decks") || "[]";
+            const localDecks = JSON.parse(raw);
+            const merged = mergeDeckLists(localDecks, remoteDecks);
+            if (JSON.stringify(merged) !== JSON.stringify(localDecks)) {
+                writeLocalDecks(merged);
+                console.info("Changements reçus depuis un autre appareil.");
+            }
+        } catch (error) {
+            console.warn("Réception automatique momentanément indisponible :", error);
+        }
+    }, 900);
+}
+
 onAuthStateChanged(auth, user => {
-    if (user) scheduleCloudSave(500);
+    if (cloudUserUnsubscribe) {
+        cloudUserUnsubscribe();
+        cloudUserUnsubscribe = null;
+    }
+    cloudSnapshotInitialized = false;
+
+    if (!user) {
+        if (cloudRefreshTimer) clearTimeout(cloudRefreshTimer);
+        cloudRefreshTimer = null;
+        return;
+    }
+
+    scheduleCloudSave(500);
+    cloudUserUnsubscribe = onSnapshot(
+        doc(db, "users", user.uid),
+        snapshot => {
+            // Le premier instantané sert uniquement à établir la surveillance.
+            if (!cloudSnapshotInitialized) {
+                cloudSnapshotInitialized = true;
+                return;
+            }
+            if (!snapshot.metadata.hasPendingWrites) scheduleCloudRefresh();
+        },
+        error => console.warn("Surveillance cloud indisponible :", error)
+    );
 });
 
 
