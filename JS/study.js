@@ -27,17 +27,24 @@ function loadDecks() {
 // ==============================
 
 const selectedDeckName =
-    localStorage.getItem("selectedDeck");
+    (localStorage.getItem("selectedDeck") || "").trim();
 
 const decks =
     loadDecks();
 
-// Un deck parent peut être un groupe virtuel sans cartes propres.
- // Pour une session globale, inclure le deck exact et tous ses sous-decks.
-const matchingDecks = decks.filter(currentDeck =>
-    currentDeck.name === selectedDeckName ||
-    currentDeck.name.startsWith(selectedDeckName + "::")
-);
+// Un groupe parent peut être virtuel : il n'a pas forcément de deck propre.
+// On rassemble donc le deck exact et tous ses descendants, avec le chemin complet.
+const matchingDecks = selectedDeckName
+    ? decks.filter(currentDeck =>
+        typeof currentDeck.name === "string" &&
+        (
+            currentDeck.name === selectedDeckName ||
+            currentDeck.name.startsWith(selectedDeckName + "::")
+        )
+    )
+    : [];
+
+
 
 const deck = matchingDecks.length
     ? {
