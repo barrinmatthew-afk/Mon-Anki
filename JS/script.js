@@ -447,16 +447,16 @@ function renderDeckTreeNode(node, isRootGroup = true, parentPath = "") {
 
     // Un groupe qui correspond à un vrai deck parent doit pouvoir être supprimé
     // directement depuis son en-tête, sans devoir ouvrir le groupe.
-    if (node.entry) {
+    {
         const deleteButton = document.createElement("button");
         deleteButton.type = "button";
         deleteButton.className = "delete-button";
-        deleteButton.dataset.index = String(node.entry.index);
+        deleteButton.dataset.deckName = fullDeckName;
         deleteButton.textContent = "Supprimer";
-        deleteButton.title = "Supprimer ce deck et tous ses sous-decks";
+        deleteButton.title = "Supprimer ce dossier logique et tous ses sous-dossiers";
         deleteButton.setAttribute(
             "aria-label",
-            "Supprimer " + node.entry.deck.name + " et tous ses sous-decks"
+            "Supprimer " + fullDeckName + " et tous ses sous-dossiers"
         );
         header.appendChild(deleteButton);
     }
@@ -616,37 +616,46 @@ function displayDecks() {
             button.addEventListener("click", () => {
 
                 const decks = loadDecks();
-                const index = Number(button.dataset.index);
 
-                if (!Number.isInteger(index) || index < 0 || !decks[index]) {
-                    alert("Impossible de retrouver ce deck. Actualise la page puis réessaie.");
-                    return;
+                // Un dossier logique peut ne pas avoir de deck propre :
+                // on le retrouve grâce à son chemin complet.
+                let deckName = button.dataset.deckName || "";
+                if (!deckName) {
+                    const index = Number(button.dataset.index);
+                    if (!Number.isInteger(index) || index < 0 || !decks[index]) {
+                        alert("Impossible de retrouver ce deck. Actualise la page puis réessaie.");
+                        return;
+                    }
+                    deckName = decks[index].name;
                 }
 
-                const deckName = decks[index].name;
-                const childDecks = decks.filter(item =>
+                const decksToDelete = decks.filter(item =>
+                    item.name === deckName ||
                     item.name.startsWith(deckName + "::")
                 );
 
-                const message = childDecks.length
-                    ? `Supprimer "${deckName}" et ses ${childDecks.length} sous-deck(s) ?`
+                if (decksToDelete.length === 0) {
+                    alert("Ce dossier ne contient plus de deck à supprimer.");
+                    return;
+                }
+
+                const descendantCount = decksToDelete.length - 1;
+                const message = descendantCount > 0
+                    ? `Supprimer "${deckName}" et tout son contenu (${decksToDelete.length} decks au total) ?`
                     : `Supprimer le deck "${deckName}" ?`;
 
                 if (!confirm(message)) return;
 
-                // Supprime le deck sélectionné et ses éventuels sous-decks
-                // afin qu'un groupe parent ne réapparaisse pas aussitôt.
-                const namesToDelete = new Set([
-                    deckName,
-                    ...childDecks.map(item => item.name)
-                ]);
+                const namesToDelete = new Set(decksToDelete.map(item => item.name));
                 const remainingDecks = decks.filter(item => !namesToDelete.has(item.name));
 
-                // Garder une trace des suppressions pour empêcher leur résurrection au prochain sync.
+                // Conserver les suppressions pour empêcher leur résurrection au prochain sync.
                 try {
                     const deleted = JSON.parse(localStorage.getItem("monanki_deleted_deck_names") || "[]");
                     localStorage.setItem("monanki_deleted_deck_names", JSON.stringify([...new Set([...deleted, ...namesToDelete])]));
-                } catch (error) { console.warn("Impossible d'enregistrer la suppression cloud du deck.", error); }
+                } catch (error) {
+                    console.warn("Impossible d'enregistrer la suppression cloud du deck.", error);
+                }
 
                 saveDecks(remainingDecks);
                 displayDecks();
