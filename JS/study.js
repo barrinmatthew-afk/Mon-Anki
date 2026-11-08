@@ -46,6 +46,13 @@ const matchingDecks = selectedDeckName
 
 
 
+// Mélanger l'ordre des sous-decks avant de réunir leurs cartes.
+// La file de cartes est également mélangée au lancement de la session.
+for (let i = matchingDecks.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [matchingDecks[i], matchingDecks[j]] = [matchingDecks[j], matchingDecks[i]];
+}
+
 const deck = matchingDecks.length
     ? {
         ...matchingDecks[0],
