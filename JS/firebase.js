@@ -518,22 +518,27 @@ onAuthStateChanged(auth, user => {
 // ==============================
 
 function cardKey(card, index) {
+    // L'identifiant peut avoir été régénéré lors d'un import sur un autre
+    // appareil. Le contenu pédagogique sert donc de clé commune en priorité.
+    // Les champs de progression (niveau, échéance, statistiques...) sont exclus.
+    const fields = [
+        "word", "question", "front", "expression", "term", "prompt",
+        "answer", "translation", "back", "meaning", "definition",
+        "mode", "type"
+    ];
+    const identity = fields.map(key =>
+        String(card?.[key] ?? "").trim().normalize("NFC").toLocaleLowerCase()
+    );
+
+    if (identity.some(Boolean)) {
+        return `content:${JSON.stringify(identity)}`;
+    }
+
+    // Pour les cartes sans texte exploitable, l'ID reste le meilleur repère.
     if (card && card.id != null) {
         return `id:${card.id}`;
     }
 
-    // Les anciennes cartes n'ont pas toujours d'identifiant.
-    // Leur position peut changer entre appareils : on utilise donc
-    // leur contenu pour retrouver la même carte dans les deux listes.
-    const word = String(card?.word ?? "").trim().toLocaleLowerCase();
-    const answer = String(card?.answer ?? "").trim().toLocaleLowerCase();
-    const mode = String(card?.mode ?? "").trim().toLocaleLowerCase();
-
-    if (word || answer) {
-        return `legacy:${JSON.stringify([word, answer, mode])}`;
-    }
-
-    // Dernier recours pour les cartes sans contenu identifiable.
     return `legacy-index:${index}`;
 }
 
