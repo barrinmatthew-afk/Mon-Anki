@@ -542,6 +542,26 @@ function cardKey(card, index) {
     return `legacy-index:${index}`;
 }
 
+function collapseExactRepeatedHalf(cards) {
+    if (!Array.isArray(cards) || cards.length < 2 || cards.length % 2 !== 0) {
+        return Array.isArray(cards) ? cards : [];
+    }
+
+    const half = cards.length / 2;
+    const firstKeys = cardKeys(cards.slice(0, half));
+    const secondKeys = cardKeys(cards.slice(half));
+
+    // Répare uniquement le cas certain où le même paquet complet a été
+    // concaténé deux fois dans le même ordre (ex. 352 -> 704).
+    if (!firstKeys.every((key, index) => key === secondKeys[index])) {
+        return cards;
+    }
+
+    return cards.slice(0, half).map((card, index) =>
+        chooseCard(card, cards[half + index])
+    );
+}
+
 function cardKeys(cards) {
     const occurrences = new Map();
 
@@ -602,9 +622,7 @@ function mergeDeckLists(localDecks, cloudDecks) {
             cloudDeck.name,
             {
                 ...cloudDeck,
-                cards: Array.isArray(cloudDeck.cards)
-                    ? [...cloudDeck.cards]
-                    : []
+                cards: collapseExactRepeatedHalf(cloudDeck.cards)
             }
         );
     }
@@ -625,9 +643,7 @@ function mergeDeckLists(localDecks, cloudDecks) {
                 localDeck.name,
                 {
                     ...localDeck,
-                    cards: Array.isArray(localDeck.cards)
-                        ? [...localDeck.cards]
-                        : []
+                    cards: collapseExactRepeatedHalf(localDeck.cards)
                 }
             );
 
