@@ -717,10 +717,22 @@ function mergeDeckLists(localDecks, cloudDecks) {
         );
     }
 
+    // Un deck présent localement après sa recréation doit être protégé
+    // des anciens marqueurs de suppression conservés dans le cloud.
+    const locallyActiveDeckNames = new Set(
+        localDecks
+            .filter(deck => deck && typeof deck.name === "string")
+            .map(deck => deck.name)
+    );
+
     const deletedDeckNames = new Set([
         ...cloudDeletedDeckNames,
         ...JSON.parse(localStorage.getItem("monanki_deleted_deck_names") || "[]")
     ]);
+    for (const activeName of locallyActiveDeckNames) {
+        deletedDeckNames.delete(activeName);
+    }
+    cloudDeletedDeckNames = [...deletedDeckNames];
     const deletedCardKeys = new Set([
         ...cloudDeletedCardKeys,
         ...JSON.parse(localStorage.getItem("monanki_deleted_card_keys") || "[]")
