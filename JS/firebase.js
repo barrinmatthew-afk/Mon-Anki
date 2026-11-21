@@ -381,9 +381,28 @@ async function flushCloudSave() {
             const deletedDeckNames = JSON.parse(localStorage.getItem("monanki_deleted_deck_names") || "[]");
             const deletedCardKeys = JSON.parse(localStorage.getItem("monanki_deleted_card_keys") || "[]");
 
+            // Un deck présent dans la sauvegarde actuelle a été créé ou recréé :
+            // un ancien marqueur de suppression ne doit jamais le faire disparaître.
+            const activeDeckNames = new Set(validDecks.map(deck => deck.name));
+            const effectiveDeletedDeckNames = [...new Set([
+                ...cloudDeletedDeckNames,
+                ...deletedDeckNames
+            ])].filter(name => !activeDeckNames.has(name));
+
+            cloudDeletedDeckNames = effectiveDeletedDeckNames;
+
+            // Répercuter le nettoyage local pour éviter de réenvoyer les anciens marqueurs.
+            try {
+                localStorage.setItem("monanki_deleted_deck_names", JSON.stringify(
+                    deletedDeckNames.filter(name => !activeDeckNames.has(name))
+                ));
+            } catch (error) {
+                console.warn("Impossible de nettoyer les anciens marqueurs de suppression :", error);
+            }
+
             await setDoc(userRef, {
                 decks: deleteField(),
-                deletedDeckNames: [...new Set([...cloudDeletedDeckNames, ...deletedDeckNames])],
+                deletedDeckNames: effectiveDeletedDeckNames,
                 deletedCardKeys: [...new Set([...cloudDeletedCardKeys, ...deletedCardKeys])],
                 updatedAt: serverTimestamp()
             }, { merge: true });
