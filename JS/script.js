@@ -727,6 +727,16 @@ function createDeck() {
 
     });
 
+    // Réautoriser explicitement la création d'un deck précédemment supprimé.
+    try {
+        const deleted = JSON.parse(localStorage.getItem("monanki_deleted_deck_names") || "[]");
+        localStorage.setItem(
+            "monanki_deleted_deck_names",
+            JSON.stringify(deleted.filter(deletedName => deletedName !== name))
+        );
+    } catch (error) {
+        console.warn("Impossible de nettoyer l'ancien marqueur de suppression du deck.", error);
+    }
 
     saveDecks(
         decks
